@@ -24,17 +24,20 @@ class Cr2(object):
 
     class Cr2Header(object):
 
-        def __init__(self, raw_header):
-            self.raw_header = raw_header
-            if raw_header[0] == 0x4949:
+        def __init__(self, header_buffer):
+            (endianness,) = struct.unpack_from('H', header_buffer)
+            if endianness == 0x4949:
                 # Intel
                 self.endian_flag = '<'
-            elif raw_header[0] == 0x4D4D:
+            elif endianness == 0x4D4D:
                 # Motorola
                 self.endian_flag = '>'
             else:
                 # WTF (use native)?
                 self.endian_flag = '@'
+            raw_header = struct.unpack_from(self.endian_flag + 'HHLHBBL',
+                                            header_buffer)
+            self.raw_header = raw_header
             self.tiff_magic_word = raw_header[1]
             self.tiff_offset = raw_header[2]
             self.magic_word = raw_header[3]
@@ -51,8 +54,8 @@ class Cr2(object):
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
-        buf = self.fhandle.read(32)
-        self.header = self.Cr2Header(struct.unpack_from('HHLHBBL', buf))
+        # Reasonably sure the header is always 32 bytes... not sure.
+        self.header = self.Cr2Header(self.fhandle.read(32))
         # Number of entries in IFD0
         # TODO: Factor out into IDF class
         # TODO: Seek and read the correct ammount.
