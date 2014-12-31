@@ -19,10 +19,6 @@ tags = {
     'gps_data': 0x8825
 }
 
-# Don't create this w/o a with clause. We leave the file open because we don't
-# want to read the image directories up front.
-# TODO: Use a wrapper class so this **can't** be created w/o a with clause?
-
 
 class Cr2(object):
 
@@ -39,7 +35,6 @@ class Cr2(object):
             else:
                 # WTF (use native)?
                 self.endian_flag = '@'
-            self.endian_flag = "<" if raw_header[0] == 0x4949 else ">"
             self.tiff_magic_word = raw_header[1]
             self.tiff_offset = raw_header[2]
             self.magic_word = raw_header[3]
