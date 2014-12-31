@@ -129,13 +129,16 @@ class Cr2(object):
 
                 if ifd_entry.tag_id == tags[name]:
                     return ifd_entry
+            return -1
 
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
         self.header = self.Header(self.fhandle)
-        # TODO: Make IDF array
-        self.ifd0 = self.Ifd(16, self)
+        self.ifd = []
+        self.ifd.append(self.Ifd(16, self))
+        for i in range(1, 3):
+            self.ifd.append(self.Ifd(self.ifd[i - 1].next_ifd_offset, self))
 
     def __enter__(self):
         return self
