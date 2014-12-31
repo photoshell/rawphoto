@@ -56,17 +56,15 @@ class Cr2(object):
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
-        # TODO: Figure out how much to read... 1024 should get the entire
-        # header
-        buf = self.fhandle.read(1024)
+        buf = self.fhandle.read(32)
         self.header = self.Cr2Header(struct.unpack_from('HHLHBBL', buf))
-        # TODO: Read a reasonable ammount...
-        buf = self.fhandle.read(1024)
         # Number of entries in IFD0
         # TODO: Factor out into IDF class
-        (num_entries,) = struct.unpack_from(self.header.endian_flag + 'H', buf,
-                                            self.header.raw_ifd_offset)
-        self.num_entries = num_entries
+        # TODO: Seek and read the correct ammount.
+        # self.fhandle.seek(0)
+        #buf = self.fhandle.read(1024)
+        #(num_entries,) = struct.unpack_from(self.header.endian_flag + 'H', buf)
+        #self.num_entries = num_entries
 
     def __enter__(self):
         return self
