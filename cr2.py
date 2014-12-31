@@ -24,7 +24,7 @@ tags = {
 # The Cr2 class loads a CR2 file from disk. It is currently read-only.
 class Cr2(object):
 
-    class Cr2Header(object):
+    class Header(object):
 
         def __init__(self, fhandle):
             if fhandle.closed:
@@ -54,8 +54,7 @@ class Cr2(object):
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
-        # Reasonably sure the header is always 16 bytes... not sure.
-        self.header = self.Cr2Header(self.fhandle)
+        self.header = self.Header(self.fhandle)
 
         # Number of entries in IFD0
         self.fhandle.seek(16)
