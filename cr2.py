@@ -54,8 +54,8 @@ class Cr2(object):
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
-        # Reasonably sure the header is always 32 bytes... not sure.
-        self.header = self.Cr2Header(self.fhandle.read(32))
+        # Reasonably sure the header is always 16 bytes... not sure.
+        self.header = self.Cr2Header(self.fhandle.read(16))
         # Number of entries in IFD0
         # TODO: Factor out into IDF class
         # TODO: Seek and read the correct ammount.
