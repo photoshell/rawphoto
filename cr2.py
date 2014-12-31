@@ -21,11 +21,16 @@ tags = {
 
 
 # Format info: http://lclevy.free.fr/cr2/
+# The Cr2 class loads a CR2 file from disk. It is currently read-only.
 class Cr2(object):
 
     class Cr2Header(object):
 
-        def __init__(self, header_buffer):
+        def __init__(self, fhandle):
+            if fhandle.closed:
+                return
+            fhandle.seek(0)
+            header_buffer = fhandle.read(16)
             (endianness,) = struct.unpack_from('H', header_buffer)
             if endianness == 0x4949:
                 # Intel
@@ -46,17 +51,11 @@ class Cr2(object):
             self.minor_version = raw_header[5]
             self.raw_ifd_offset = raw_header[6]
 
-    class IfdEntry(object):
-
-        def __init__(self, raw_idf_entry):
-            (self.tag_id, self.tag_type,
-             self.num_value, self.value) = raw_idf_entry
-
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
         # Reasonably sure the header is always 16 bytes... not sure.
-        self.header = self.Cr2Header(self.fhandle.read(16))
+        self.header = self.Cr2Header(self.fhandle)
 
         # Number of entries in IFD0
         self.fhandle.seek(16)
