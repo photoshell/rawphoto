@@ -102,6 +102,8 @@ class Cr2(object):
                         tag_fmt = repr(self.value_len) + tag_fmt
                     (self.value,) = struct.unpack_from(
                         self.parent.endian_flag + tag_fmt, buf)
+                    if tag_fmt[-1] == 's':
+                        self.value = self.value.decode("utf-8")
                 return self.value
 
         def __init__(self, offset, parent):
