@@ -20,6 +20,7 @@ tags = {
 }
 
 
+# Format info: http://lclevy.free.fr/cr2/
 class Cr2(object):
 
     class Cr2Header(object):
@@ -56,19 +57,21 @@ class Cr2(object):
         self.fhandle = open(file_path, "rb")
         # Reasonably sure the header is always 16 bytes... not sure.
         self.header = self.Cr2Header(self.fhandle.read(16))
+
         # Number of entries in IFD0
-        # TODO: Factor out into IDF class
-        # TODO: Seek and read the correct ammount.
-        # self.fhandle.seek(0)
-        #buf = self.fhandle.read(1024)
-        #(num_entries,) = struct.unpack_from(self.header.endian_flag + 'H', buf)
-        #self.num_entries = num_entries
+        self.fhandle.seek(16)
+        buf = self.fhandle.read(2)
+        (num_entries,) = struct.unpack_from(self.header.endian_flag + 'H', buf)
+        self.num_entries = num_entries
 
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
         self.fhandle.close()
+
+    def get_endianness(self):
+        return self.header.endianness
 
     def get_header(self):
         return self.header
