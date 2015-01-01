@@ -108,19 +108,19 @@ class Cr2():
         def __init__(self, offset, parent):
             self.fhandle = parent.fhandle
             self.offset = offset
-            self.endian_flag = parent.get_endian_flag()
+            self.endian_flag = parent.endian_flag
 
             # Read num entries
             parent.fhandle.seek(offset)
             buf = parent.fhandle.read(2)
             (self.num_entries,) = struct.unpack_from(
-                parent.get_endian_flag() + 'H', buf)
+                parent.endian_flag + 'H', buf)
 
             # Read next offset
             parent.fhandle.seek(offset + (2 + 12 * self.num_entries))
             buf = parent.fhandle.read(2)
             (self.next_ifd_offset,) = struct.unpack_from(
-                parent.get_endian_flag() + 'H', buf)
+                parent.endian_flag + 'H', buf)
 
         def find_entry(self, name):
             for entry_num in range(0, self.num_entries):
@@ -145,7 +145,8 @@ class Cr2():
     def __exit__(self, type, value, traceback):
         self.fhandle.close()
 
-    def get_endian_flag(self):
+    @property
+    def endian_flag(self):
         return self.header.endian_flag
 
     def get_header(self):
