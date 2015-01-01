@@ -150,6 +150,3 @@ class Cr2():
     @property
     def endian_flag(self):
         return self.header.endian_flag
-
-    def get_header(self):
-        return self.header
