@@ -82,7 +82,7 @@ class Cr2():
                 if tag_types[self.tag_type].startswith('*'):
                     (self.raw_value,) = struct.unpack_from(parent.endian_flag +
                                                            'L', buf)
-                    self._value = -1
+                    self._value = None
                 else:
                     (self.raw_value,) = struct.unpack_from(parent.endian_flag +
                                                            tag_types[self.tag_type], buf)
@@ -91,7 +91,7 @@ class Cr2():
             @property
             def value(self):
                 # If value is not cached yet, read it
-                if self._value == -1:
+                if self._value == None:
                     # Read value from file
                     self.parent.fhandle.seek(self.raw_value)
                     buf = self.parent.fhandle.read(self.value_len)
