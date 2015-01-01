@@ -79,30 +79,31 @@ class Cr2():
                 (self.tag_id, self.tag_type, self.value_len) = struct.unpack_from(
                     parent.endian_flag + 'HHL', buf)
                 buf = parent.fhandle.read(4)
-                if tag_types[self.tag_type][0] == '*':
+                if tag_types[self.tag_type].startswith('*'):
                     (self.raw_value,) = struct.unpack_from(parent.endian_flag +
                                                            'L', buf)
-                    self.value = -1
+                    self._value = -1
                 else:
                     (self.raw_value,) = struct.unpack_from(parent.endian_flag +
                                                            tag_types[self.tag_type], buf)
-                    self.value = self.raw_value
+                    self._value = self.raw_value
 
-            def get_value(self):
+            @property
+            def value(self):
                 # If value is not cached yet, read it
-                if self.value == -1:
+                if self._value == -1:
                     # Read value from file
                     self.parent.fhandle.seek(self.raw_value)
                     buf = self.parent.fhandle.read(self.value_len)
                     tag_fmt = tag_types[self.tag_type][1:]
                     if tag_fmt == 's' or tag_fmt == 'p':
                         tag_fmt = repr(self.value_len) + tag_fmt
-                    (self.value,) = struct.unpack_from(
+                    [self._value] = struct.unpack_from(
                         self.parent.endian_flag + tag_fmt, buf)
                     if tag_fmt[-1] == 's':
                         # Decode to UTF-8, removing null terminator.
-                        self.value = self.value.decode("utf-8")[:-1]
-                return self.value
+                        self._value = self._value.decode("utf-8")[:-1]
+                return self._value
 
         def __init__(self, offset, parent):
             self.fhandle = parent.fhandle
