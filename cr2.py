@@ -1,6 +1,19 @@
 import os
 import struct
 
+from collections import namedtuple
+
+# Mapping from manufacturer to associated endianness as accepted by struct
+endian_flags = {
+    0x4949: '<',  # Intel
+    0x4D4D: '>',  # Motorola
+}
+
+_HeaderFields = namedtuple("HeaderFields", [
+    "endian_flag", "raw_header", "tiff_magic_word", "tiff_offset",
+    "magic_word", "major_version", "minor_version", "raw_ifd_offset"
+])
+
 tags = {
     'image_width': 0x0100,
     'image_length': 0x0101,
@@ -41,41 +54,25 @@ tag_types = {
 # The Cr2 class loads a CR2 file from disk. It is currently read-only.
 
 
-class Cr2(object):
+class Header(_HeaderFields):
+    __slots__ = ()
 
-    class Header(object):
+    def __new__(cls, header_bytes):
+        [endianness] = struct.unpack_from('H', header_bytes)
 
-        def __init__(self, fhandle):
-            assert not fhandle.closed
-            fhandle.seek(0)
-            header_buffer = fhandle.read(16)
-            (endianness,) = struct.unpack_from('H', header_buffer)
-            if endianness == 0x4949:
-                # Intel
-                self.endian_flag = '<'
-            elif endianness == 0x4D4D:
-                # Motorola
-                self.endian_flag = '>'
-            else:
-                # WTF (use native)?
-                self.endian_flag = '@'
-            raw_header = struct.unpack_from(self.endian_flag + 'HHLHBBL',
-                                            header_buffer)
-            self.raw_header = raw_header
-            self.tiff_magic_word = raw_header[1]
-            self.tiff_offset = raw_header[2]
-            self.magic_word = raw_header[3]
-            self.major_version = raw_header[4]
-            self.minor_version = raw_header[5]
-            self.raw_ifd_offset = raw_header[6]
+        endian_flag = endian_flags.get(endianness, "@")
+        raw_header = struct.unpack(endian_flag + 'HHLHBBL', header_bytes)
+
+        return super().__new__(cls, endian_flag, raw_header, *raw_header[1:])
+
+
+class Cr2():
 
     class Ifd(object):
 
         class IfdEntry(object):
 
             def __init__(self, num, parent):
-                assert not parent.fhandle.closed
-
                 self.parent = parent
                 parent.fhandle.seek(parent.offset + 2 + (12 * num))
                 buf = parent.fhandle.read(8)
@@ -108,8 +105,6 @@ class Cr2(object):
                 return self.value
 
         def __init__(self, offset, parent):
-            assert not parent.fhandle.closed
-
             self.fhandle = parent.fhandle
             self.offset = offset
             self.endian_flag = parent.get_endian_flag()
@@ -137,7 +132,7 @@ class Cr2(object):
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
-        self.header = self.Header(self.fhandle)
+        self.header = Header(self.fhandle.read(16))
         self.ifd = []
         self.ifd.append(self.Ifd(16, self))
         for i in range(1, 3):
