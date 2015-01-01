@@ -58,7 +58,7 @@ class Header(_HeaderFields):
     __slots__ = ()
 
     def __new__(cls, header_bytes):
-        [endianness] = struct.unpack_from('H', header_bytes)
+        [endianness] = struct.unpack_from('>H', header_bytes)
 
         endian_flag = endian_flags.get(endianness, "@")
         raw_header = struct.unpack(endian_flag + 'HHLHBBL', header_bytes)
