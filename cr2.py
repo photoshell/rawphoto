@@ -33,21 +33,19 @@ tags = {
 }
 
 # Mapping of tag types to format strings.
-# Format strings that start with a * are too long to fit in the IFD entry and
-# are actually a pointer to somewhere else in the file.
 tag_types = {
     0x1: 'B',  # Unsigned char
-    0x2: '*s',  # String (with ending 0)
+    0x2: 's',  # String (with ending 0)
     0x3: 'H',  # Unsigned short
     0x4: 'L',  # Unsigned long
-    0x5: '*Q',  # Unsigned rational
+    0x5: 'Q',  # Unsigned rational
     0x6: 'b',  # Signed char
-    0x7: '*p',  # Byte sequence
+    0x7: 'p',  # Byte sequence
     0x8: 'h',  # Signed short
     0x9: 'l',  # Signed long
-    0xA: '*q',  # Signed rational
-    0xB: '*f',  # Float (IEEE)
-    0xC: '*d',  # Double (IEEE)
+    0xA: 'q',  # Signed rational
+    0xB: 'f',  # Float (IEEE)
+    0xC: 'd',  # Double (IEEE)
 }
 
 # Format info: http://lclevy.free.fr/cr2/
@@ -75,7 +73,9 @@ class IfdEntry(object):
         (self.tag_id, self.tag_type, self.value_len) = struct.unpack_from(
             parent.endian_flag + 'HHL', buf)
         buf = parent.fhandle.read(4)
-        if tag_types[self.tag_type].startswith('*'):
+        tag_type = tag_types[self.tag_type]
+        # If the value is an offset...
+        if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
             (self.raw_value,) = struct.unpack_from(parent.endian_flag +
                                                    'L', buf)
             self._value = None
@@ -91,7 +91,7 @@ class IfdEntry(object):
             # Read value from file
             self.parent.fhandle.seek(self.raw_value)
             buf = self.parent.fhandle.read(self.value_len)
-            tag_fmt = tag_types[self.tag_type][1:]
+            tag_fmt = tag_types[self.tag_type]
             if tag_fmt == 's' or tag_fmt == 'p':
                 tag_fmt = repr(self.value_len) + tag_fmt
             [self._value] = struct.unpack_from(
