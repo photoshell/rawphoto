@@ -102,43 +102,44 @@ class IfdEntry(object):
         return self._value
 
 
+class Ifd(object):
+
+    def __init__(self, offset, parent):
+        self.fhandle = parent.fhandle
+        self.offset = offset
+        self.endian_flag = parent.endian_flag
+
+        # Read num entries
+        parent.fhandle.seek(offset)
+        buf = parent.fhandle.read(2)
+        (self.num_entries,) = struct.unpack_from(
+            parent.endian_flag + 'H', buf)
+
+        # Read next offset
+        parent.fhandle.seek(offset + (2 + 12 * self.num_entries))
+        buf = parent.fhandle.read(2)
+        (self.next_ifd_offset,) = struct.unpack_from(
+            parent.endian_flag + 'H', buf)
+
+    def find_entry(self, name):
+        for entry_num in range(0, self.num_entries):
+            ifd_entry = IfdEntry(entry_num, self)
+
+            if ifd_entry.tag_id == tags[name]:
+                return ifd_entry
+        return -1
+
+
 class Cr2():
-
-    class Ifd(object):
-
-        def __init__(self, offset, parent):
-            self.fhandle = parent.fhandle
-            self.offset = offset
-            self.endian_flag = parent.endian_flag
-
-            # Read num entries
-            parent.fhandle.seek(offset)
-            buf = parent.fhandle.read(2)
-            (self.num_entries,) = struct.unpack_from(
-                parent.endian_flag + 'H', buf)
-
-            # Read next offset
-            parent.fhandle.seek(offset + (2 + 12 * self.num_entries))
-            buf = parent.fhandle.read(2)
-            (self.next_ifd_offset,) = struct.unpack_from(
-                parent.endian_flag + 'H', buf)
-
-        def find_entry(self, name):
-            for entry_num in range(0, self.num_entries):
-                ifd_entry = IfdEntry(entry_num, self)
-
-                if ifd_entry.tag_id == tags[name]:
-                    return ifd_entry
-            return -1
 
     def __init__(self, file_path):
         self.file_path = file_path
         self.fhandle = open(file_path, "rb")
         self.header = Header(self.fhandle.read(16))
         self.ifd = []
-        self.ifd.append(self.Ifd(16, self))
+        self.ifd.append(Ifd(16, self))
         for i in range(1, 3):
-            self.ifd.append(self.Ifd(self.ifd[i - 1].next_ifd_offset, self))
+            self.ifd.append(Ifd(self.ifd[i - 1].next_ifd_offset, self))
 
     def __enter__(self):
         return self
