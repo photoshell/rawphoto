@@ -1,8 +1,8 @@
 import os
 import struct
-from io import BufferedReader
 
 from collections import namedtuple
+from io import BufferedReader
 
 # Mapping from manufacturer to associated endianness as accepted by struct
 endian_flags = {
