@@ -1,5 +1,6 @@
 import os
 import struct
+from io import BufferedReader
 
 from collections import namedtuple
 
@@ -135,9 +136,16 @@ class Ifd(object):
 
 class Cr2():
 
-    def __init__(self, file_path):
-        self.file_path = file_path
-        self.fhandle = open(file_path, "rb")
+    def __init__(self, image=None, blob=None, file=None, filename=None):
+
+        # TODO: Raise a TypeError if multiple arguments are supplied?
+        if file is not None:
+            self.fhandle = file
+        elif blob is not None:
+            self.fhandle = BufferedReader(blob)
+        elif filename is not None:
+            self.fhandle = open(filename, "rb")
+
         self.header = Header(self.fhandle.read(16))
         self.ifd = []
         self.ifd.append(Ifd(self.endianness, self.fhandle))
