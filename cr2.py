@@ -10,8 +10,12 @@ endian_flags = {
 }
 
 _HeaderFields = namedtuple("HeaderFields", [
-    "endian_flag", "raw_header", "tiff_magic_word", "tiff_offset",
+    "endianness", "raw_header", "tiff_magic_word", "tiff_offset",
     "magic_word", "major_version", "minor_version", "raw_ifd_offset"
+])
+
+_IfdEntryFields = namedtuple("IfdEntryFields", [
+    "tag_id", "tag_type", "value_len", "raw_value"
 ])
 
 tags = {
@@ -35,7 +39,7 @@ tags = {
 # Mapping of tag types to format strings.
 tag_types = {
     0x1: 'B',  # Unsigned char
-    0x2: 's',  # String (with ending 0)
+    0x2: 's',  # String (with ending \0)
     0x3: 'H',  # Unsigned short
     0x4: 'L',  # Unsigned long
     0x5: 'Q',  # Unsigned rational
@@ -58,76 +62,75 @@ class Header(_HeaderFields):
     def __new__(cls, header_bytes):
         [endianness] = struct.unpack_from('>H', header_bytes)
 
-        endian_flag = endian_flags.get(endianness, "@")
-        raw_header = struct.unpack(endian_flag + 'HHLHBBL', header_bytes)
+        endianness = endian_flags.get(endianness, "@")
+        raw_header = struct.unpack(endianness + 'HHLHBBL', header_bytes)
 
-        return super().__new__(cls, endian_flag, raw_header, *raw_header[1:])
+        return super().__new__(cls, endianness, raw_header, *raw_header[1:])
 
 
-class IfdEntry(object):
+class IfdEntry(_IfdEntryFields):
+    __slots__ = ()
 
-    def __init__(self, num, parent):
-        self.parent = parent
-        parent.fhandle.seek(parent.offset + 2 + (12 * num))
-        buf = parent.fhandle.read(8)
-        (self.tag_id, self.tag_type, self.value_len) = struct.unpack_from(
-            parent.endian_flag + 'HHL', buf)
-        buf = parent.fhandle.read(4)
-        tag_type = tag_types[self.tag_type]
-        # If the value is an offset...
+    def __new__(cls, endianness, entry_bytes):
+        def unpack_at(tag_type, offset):
+            return struct.unpack_from(endianness + tag_type, entry_bytes,
+                                      offset)
+        tag_id, tag_type_key, value_len = unpack_at('HHL', 0)
+        tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
-            (self.raw_value,) = struct.unpack_from(parent.endian_flag +
-                                                   'L', buf)
-            self._value = None
+            # If the value is a pointer to something small, read it:
+            [raw_value] = unpack_at('L', 8)
         else:
-            (self.raw_value,) = struct.unpack_from(parent.endian_flag +
-                                                   tag_types[self.tag_type], buf)
-            self._value = self.raw_value
+            # If the value is not an offset go ahead and read it:
+            [raw_value] = unpack_at(tag_type, 8)
 
-    @property
-    def value(self):
-        # If value is not cached yet, read it
-        if self._value == None:
-            # Read value from file
-            self.parent.fhandle.seek(self.raw_value)
-            buf = self.parent.fhandle.read(self.value_len)
-            tag_fmt = tag_types[self.tag_type]
-            if tag_fmt == 's' or tag_fmt == 'p':
-                tag_fmt = repr(self.value_len) + tag_fmt
-            [self._value] = struct.unpack_from(
-                self.parent.endian_flag + tag_fmt, buf)
-            if tag_fmt.endswith('s'):
-                # Decode to UTF-8, removing null terminator.
-                self._value = self._value.decode("utf-8")[:-1]
-        return self._value
+        return super().__new__(cls, tag_id, tag_type, value_len, raw_value)
 
 
 class Ifd(object):
 
-    def __init__(self, offset, parent):
-        self.fhandle = parent.fhandle
-        self.offset = offset
-        self.endian_flag = parent.endian_flag
+    def __init__(self, endianness, image_file):
+        def read_tag(tag_type):
+            buf = image_file.read(struct.calcsize(tag_type))
+            return struct.unpack_from(endianness + tag_type, buf)
+        self.image_file = image_file
+        self.endianness = endianness
+        [num_entries] = read_tag('H')
 
-        # Read num entries
-        parent.fhandle.seek(offset)
-        buf = parent.fhandle.read(2)
-        (self.num_entries,) = struct.unpack_from(
-            parent.endian_flag + 'H', buf)
+        self.entries = []
+        buf = image_file.read(12 * num_entries)
+        self.entries = [IfdEntry(endianness,
+                                 buf[(12 * i):(12 * (i + 1))]) for i in range(num_entries)]
 
-        # Read next offset
-        parent.fhandle.seek(offset + (2 + 12 * self.num_entries))
-        buf = parent.fhandle.read(2)
-        (self.next_ifd_offset,) = struct.unpack_from(
-            parent.endian_flag + 'H', buf)
+        [self.next_ifd_offset] = read_tag('H')
 
     def find_entry(self, name):
-        for entry_num in range(0, self.num_entries):
-            ifd_entry = IfdEntry(entry_num, self)
+        for entry in self.entries:
+            if entry.tag_id == tags[name]:
+                return entry
 
-            if ifd_entry.tag_id == tags[name]:
-                return ifd_entry
-        return -1
+    def get_value(self, entry):
+        tag_type = entry.tag_type
+        if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
+            # Read value
+            pos = self.image_file.seek(0, 1)
+            self.image_file.seek(entry.raw_value)
+            if tag_type == 's' or tag_type == 'p':
+                buf = self.image_file.read(entry.value_len)
+                [value] = struct.unpack_from('{}{}'.format(entry.value_len,
+                                                           tag_type), buf)
+                if tag_type == 's':
+                    value = value.rstrip(b'\0').decode("utf-8")
+            else:
+                buf = self.image_file.read(struct.calcsize(tag_type))
+                [value] = struct.unpack_from(self.endianness + tag_type, buf)
+
+            # Be polite and rewind the file...
+            self.image_file.seek(pos)
+            return value
+        else:
+            # Return existing value
+            return entry.raw_value
 
 
 class Cr2():
@@ -137,9 +140,10 @@ class Cr2():
         self.fhandle = open(file_path, "rb")
         self.header = Header(self.fhandle.read(16))
         self.ifd = []
-        self.ifd.append(Ifd(16, self))
+        self.ifd.append(Ifd(self.endianness, self.fhandle))
         for i in range(1, 3):
-            self.ifd.append(Ifd(self.ifd[i - 1].next_ifd_offset, self))
+            self.fhandle.seek(self.ifd[i - 1].next_ifd_offset)
+            self.ifd.append(Ifd(self.endianness, self.fhandle))
 
     def __enter__(self):
         return self
@@ -148,5 +152,5 @@ class Cr2():
         self.fhandle.close()
 
     @property
-    def endian_flag(self):
-        return self.header.endian_flag
+    def endianness(self):
+        return self.header.endianness
