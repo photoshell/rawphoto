@@ -19,7 +19,21 @@ _IfdEntryFields = namedtuple("IfdEntryFields", [
     "tag_id", "tag_name", "tag_type", "value_len", "raw_value"
 ])
 
+subdirs = [0x8769, 0x927c]
+
 tags = {
+    0x0006: 'canon_image_type',
+    0x0007: 'canon_firmware_version',
+    0x0008: 'file_number',
+    0x0009: 'owner_name',
+    0x000c: 'serial_number',
+    0x000e: 'canon_file_length',
+    0x001a: 'super_macro',
+    0x001c: 'date_stamp_mode',
+    0x001e: 'firmware_revision',
+    0x0028: 'image_unique_id',
+    0x0081: 'raw_data_offset',
+    0x0083: 'original_decision_data_offset',
     0x0095: 'lens_model',
     0x0100: 'image_width',
     0x0101: 'image_length',
@@ -125,7 +139,7 @@ class Ifd(object):
         for i in range(num_entries):
             e = IfdEntry(endianness, buf[(12 * i):(12 * (i + 1))])
             self.entries[e.tag_name] = e
-            if e.tag_name == 'exif' or e.tag_name == 'makernote':
+            if e.tag_id in subdirs:
                 self.subifds[e.tag_name] = Ifd(endianness, image_file,
                                                e.raw_value)
         [self.next_ifd_offset] = read_tag('H')
