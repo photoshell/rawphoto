@@ -104,13 +104,15 @@ class IfdEntry(_IfdEntryFields):
 
 class Ifd(object):
 
-    def __init__(self, endianness, image_file):
+    def __init__(self, endianness, image_file, offset=None):
         def read_tag(tag_type):
             buf = image_file.read(struct.calcsize(tag_type))
             return struct.unpack_from(endianness + tag_type, buf)
 
         self.image_file = image_file
         pos = self.image_file.seek(0, 1)
+        if offset is not None:
+            self.image_file.seek(offset)
 
         self.endianness = endianness
         [num_entries] = read_tag('H')
@@ -122,10 +124,8 @@ class Ifd(object):
             e = IfdEntry(endianness, buf[(12 * i):(12 * (i + 1))])
             self.entries[e.tag_name] = e
             if e.tag_name == 'exif':
-                p = self.image_file.seek(0, 1)
-                self.image_file.seek(e.raw_value)
-                self.subifds[e.tag_name] = Ifd(endianness, image_file)
-                self.image_file.seek(p)
+                self.subifds[e.tag_name] = Ifd(endianness, image_file,
+                                               e.raw_value)
         [self.next_ifd_offset] = read_tag('H')
         self.image_file.seek(pos)
 
