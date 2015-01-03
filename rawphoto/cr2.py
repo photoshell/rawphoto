@@ -20,6 +20,7 @@ _IfdEntryFields = namedtuple("IfdEntryFields", [
 ])
 
 tags = {
+    0x0095: 'lens_model',
     0x0100: 'image_width',
     0x0101: 'image_length',
     0x0102: 'bits_per_sample',
@@ -39,6 +40,7 @@ tags = {
     0x0132: 'datetime',
     0x0201: 'thumbnail_offset',
     0x0202: 'thumbnail_length',
+    0x4020: 'ambience_info',
     0x829a: 'exposure_time',
     0x829d: 'fnumber',
     0x8769: 'exif',
