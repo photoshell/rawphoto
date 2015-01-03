@@ -22,19 +22,42 @@ _IfdEntryFields = namedtuple("IfdEntryFields", [
 subdirs = [0x8769, 0x927c]
 
 tags = {
+    0x0001: 'canon_camera_settings',
+    0x0002: 'canon_focal_length',
+    0x0004: 'canon_shot_info',
+    0x0005: 'canon_panorama',
     0x0006: 'canon_image_type',
     0x0007: 'canon_firmware_version',
     0x0008: 'file_number',
     0x0009: 'owner_name',
     0x000c: 'serial_number',
+    0x000d: 'canon_camera_info',  # Here there be monsters.
     0x000e: 'canon_file_length',
+    0x000f: 'custom_functions',
+    0x0010: 'canon_model_id',
+    0x0011: 'canon_movie_info',
+    0x0012: 'canon_af_info',
+    0x0013: 'thumbnail_image_valid_area',
+    0x0015: 'serial_number_format',
     0x001a: 'super_macro',
     0x001c: 'date_stamp_mode',
+    0x001d: 'my_colors',
     0x001e: 'firmware_revision',
+    0x0023: 'categories',
+    0x0024: 'face_detection_1',
+    0x0025: 'face_detection_2',
+    0x0026: 'canon_af_info_2',
+    0x0027: 'contrast_info',
     0x0028: 'image_unique_id',
+    0x002f: 'face_detection_3',
+    0x0035: 'time_info',
+    0x003c: 'canon_af_info_3',
     0x0081: 'raw_data_offset',
     0x0083: 'original_decision_data_offset',
     0x0095: 'lens_model',
+    0x0096: 'serial_info',
+    0x00ae: 'color_temperature',
+    0x00b4: 'color_space',  # 1=sRGB, 2=Adobe RGB
     0x0100: 'image_width',
     0x0101: 'image_length',
     0x0102: 'bits_per_sample',
@@ -54,6 +77,7 @@ tags = {
     0x0132: 'datetime',
     0x0201: 'thumbnail_offset',
     0x0202: 'thumbnail_length',
+    0x4010: 'custom_picture_style_file_name',
     0x4020: 'ambience_info',
     0x829a: 'exposure_time',
     0x829d: 'fnumber',
@@ -160,7 +184,12 @@ class Ifd(object):
                     value = value.rstrip(b'\0').decode("utf-8")
             else:
                 buf = self.image_file.read(size)
-                [value] = struct.unpack_from(self.endianness + tag_type, buf)
+                if len(buf) >= size:
+                    [value] = struct.unpack_from(
+                        self.endianness + tag_type, buf)
+                else:
+                    # TODO: Unsure if this is correct behavior...
+                    value = entry.raw_value
 
             # Be polite and rewind the file...
             self.image_file.seek(pos)
