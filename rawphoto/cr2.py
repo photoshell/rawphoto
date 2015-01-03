@@ -112,8 +112,7 @@ class Ifd(object):
 
     def get_value(self, entry):
         tag_type = entry.tag_type
-        size = struct.calcsize(entry.tag_type)
-        if size > 4 or size != entry.value_len or tag_type == 's' or tag_type == 'p':
+        if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
             # Read value
             pos = self.image_file.seek(0, 1)
             self.image_file.seek(entry.raw_value)
