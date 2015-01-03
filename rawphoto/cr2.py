@@ -37,11 +37,14 @@ tags = {
     0x011c: 'planar_configuration',
     0x0128: 'resolution_unit',
     0x0132: 'datetime',
-    0x8769: 'exif',
-    0x8825: 'gps_data',
     0x0201: 'thumbnail_offset',
     0x0202: 'thumbnail_length',
-    0xc640: 'cr2_slice'
+    0x829a: 'exposure_time',
+    0x829d: 'fnumber',
+    0x8769: 'exif',
+    0x8825: 'gps_data',
+    0x927c: 'makernote',
+    0xc640: 'cr2_slice',
 }
 
 # Mapping of tag types to format strings.
@@ -113,11 +116,16 @@ class Ifd(object):
         [num_entries] = read_tag('H')
 
         self.entries = {}
+        self.subifds = {}
         buf = image_file.read(12 * num_entries)
         for i in range(num_entries):
             e = IfdEntry(endianness, buf[(12 * i):(12 * (i + 1))])
             self.entries[e.tag_name] = e
-
+            if e.tag_name == 'exif':
+                p = self.image_file.seek(0, 1)
+                self.image_file.seek(e.raw_value)
+                self.subifds[e.tag_name] = Ifd(endianness, image_file)
+                self.image_file.seek(p)
         [self.next_ifd_offset] = read_tag('H')
         self.image_file.seek(pos)
 
