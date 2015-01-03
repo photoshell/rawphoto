@@ -16,25 +16,32 @@ _HeaderFields = namedtuple("HeaderFields", [
 ])
 
 _IfdEntryFields = namedtuple("IfdEntryFields", [
-    "tag_id", "tag_type", "value_len", "raw_value"
+    "tag_id", "tag_name", "tag_type", "value_len", "raw_value"
 ])
 
 tags = {
-    'image_width': 0x0100,
-    'image_length': 0x0101,
-    'bits_per_sample': 0x0102,
-    'compression': 0x0103,
-    'make': 0x010f,
-    'model': 0x0110,
-    'strip_offset': 0x0111,
-    'orientation': 0x0112,
-    'strip_byte_counts': 0x0117,
-    'x_resolution': 0x011a,
-    'y_resolution': 0x011b,
-    'resolution_unit': 0x0128,
-    'datetime': 0x0132,
-    'exif': 0x8769,
-    'gps_data': 0x8825
+    0x0100: 'image_width',
+    0x0101: 'image_length',
+    0x0102: 'bits_per_sample',
+    0x0103: 'compression',
+    0x0106: 'photometric_interpretation',
+    0x010f: 'make',
+    0x0110: 'model',
+    0x0111: 'strip_offset',
+    0x0112: 'orientation',
+    0x0115: 'samples_per_pixel',
+    0x0116: 'row_per_strip',
+    0x0117: 'strip_byte_counts',
+    0x011a: 'x_resolution',
+    0x011b: 'y_resolution',
+    0x011c: 'planar_configuration',
+    0x0128: 'resolution_unit',
+    0x0132: 'datetime',
+    0x8769: 'exif',
+    0x8825: 'gps_data',
+    0x0201: 'thumbnail_offset',
+    0x0202: 'thumbnail_length',
+    0xc640: 'cr2_slice'
 }
 
 # Mapping of tag types to format strings.
@@ -43,12 +50,12 @@ tag_types = {
     0x2: 's',  # String (with ending \0)
     0x3: 'H',  # Unsigned short
     0x4: 'L',  # Unsigned long
-    0x5: 'Q',  # Unsigned rational
+    0x5: 'L',  # Unsigned rational (ignoring second half)
     0x6: 'b',  # Signed char
     0x7: 'p',  # Byte sequence
     0x8: 'h',  # Signed short
     0x9: 'l',  # Signed long
-    0xA: 'q',  # Signed rational
+    0xA: 'l',  # Signed rational (ignoring second half)
     0xB: 'f',  # Float (IEEE)
     0xC: 'd',  # Double (IEEE)
 }
@@ -77,6 +84,10 @@ class IfdEntry(_IfdEntryFields):
             return struct.unpack_from(endianness + tag_type, entry_bytes,
                                       offset)
         tag_id, tag_type_key, value_len = unpack_at('HHL', 0)
+        if tag_id in tags:
+            tag_name = tags[tag_id]
+        else:
+            tag_name = None
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
             # If the value is a pointer to something small, read it:
@@ -85,7 +96,7 @@ class IfdEntry(_IfdEntryFields):
             # If the value is not an offset go ahead and read it:
             [raw_value] = unpack_at(tag_type, 8)
 
-        return super().__new__(cls, tag_id, tag_type, value_len, raw_value)
+        return super().__new__(cls, tag_id, tag_name, tag_type, value_len, raw_value)
 
 
 class Ifd(object):
@@ -94,25 +105,26 @@ class Ifd(object):
         def read_tag(tag_type):
             buf = image_file.read(struct.calcsize(tag_type))
             return struct.unpack_from(endianness + tag_type, buf)
+
         self.image_file = image_file
+        pos = self.image_file.seek(0, 1)
+
         self.endianness = endianness
         [num_entries] = read_tag('H')
 
-        self.entries = []
+        self.entries = {}
         buf = image_file.read(12 * num_entries)
-        self.entries = [IfdEntry(endianness,
-                                 buf[(12 * i):(12 * (i + 1))]) for i in range(num_entries)]
+        for i in range(num_entries):
+            e = IfdEntry(endianness, buf[(12 * i):(12 * (i + 1))])
+            self.entries[e.tag_name] = e
 
         [self.next_ifd_offset] = read_tag('H')
-
-    def find_entry(self, name):
-        for entry in self.entries:
-            if entry.tag_id == tags[name]:
-                return entry
+        self.image_file.seek(pos)
 
     def get_value(self, entry):
         tag_type = entry.tag_type
-        if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
+        size = struct.calcsize(tag_type)
+        if size > 4 or tag_type == 's' or tag_type == 'p':
             # Read value
             pos = self.image_file.seek(0, 1)
             self.image_file.seek(entry.raw_value)
@@ -123,7 +135,7 @@ class Ifd(object):
                 if tag_type == 's':
                     value = value.rstrip(b'\0').decode("utf-8")
             else:
-                buf = self.image_file.read(struct.calcsize(tag_type))
+                buf = self.image_file.read(size)
                 [value] = struct.unpack_from(self.endianness + tag_type, buf)
 
             # Be polite and rewind the file...
@@ -147,11 +159,11 @@ class Cr2():
             self.fhandle = open(filename, "rb")
 
         self.header = Header(self.fhandle.read(16))
-        self.ifd = []
-        self.ifd.append(Ifd(self.endianness, self.fhandle))
+        self.ifds = []
+        self.ifds.append(Ifd(self.endianness, self.fhandle))
         for i in range(1, 3):
-            self.fhandle.seek(self.ifd[i - 1].next_ifd_offset)
-            self.ifd.append(Ifd(self.endianness, self.fhandle))
+            self.fhandle.seek(self.ifds[i - 1].next_ifd_offset)
+            self.ifds.append(Ifd(self.endianness, self.fhandle))
 
     def __enter__(self):
         return self
