@@ -90,7 +90,7 @@ class IfdEntry(_IfdEntryFields):
         if tag_id in tags:
             tag_name = tags[tag_id]
         else:
-            tag_name = None
+            tag_name = tag_id
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
             # If the value is a pointer to something small, read it:
@@ -123,7 +123,7 @@ class Ifd(object):
         for i in range(num_entries):
             e = IfdEntry(endianness, buf[(12 * i):(12 * (i + 1))])
             self.entries[e.tag_name] = e
-            if e.tag_name == 'exif':
+            if e.tag_name == 'exif' or e.tag_name == 'makernote':
                 self.subifds[e.tag_name] = Ifd(endianness, image_file,
                                                e.raw_value)
         [self.next_ifd_offset] = read_tag('H')
