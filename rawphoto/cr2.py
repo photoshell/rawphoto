@@ -139,7 +139,8 @@ class IfdEntry(_IfdEntryFields):
             # If the value is not an offset go ahead and read it:
             [raw_value] = unpack_at(tag_type, 8)
 
-        return super().__new__(cls, tag_id, tag_name, tag_type, value_len, raw_value)
+        return super().__new__(cls, tag_id, tag_name, tag_type, value_len,
+                               raw_value)
 
 
 class Ifd(object):
@@ -227,3 +228,14 @@ class Cr2():
     @property
     def endianness(self):
         return self.header.endianness
+
+    def get_thumbnail(self):
+        if len(self.ifds) >= 2:
+            entries = self.ifds[1].entries
+            if 'thumbnail_length' in entries and 'thumbnail_offset' in entries:
+                pos = self.fhandle.seek(0, 1)
+                self.fhandle.seek(entries['thumbnail_offset'].raw_value)
+                img_data = self.fhandle.read(
+                    entries['thumbnail_length'].raw_value)
+                self.fhandle.seek(pos)
+                return img_data
