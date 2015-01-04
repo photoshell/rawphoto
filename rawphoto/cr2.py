@@ -223,11 +223,17 @@ class Cr2():
             next_ifd_offset = self.ifds[len(self.ifds) - 1].next_ifd_offset
         self.fhandle.seek(pos)
 
+    def read(self, *args):
+        return self.fhandle.read(*args)
+
+    def close(self):
+        return self.fhandle.close()
+
     def __enter__(self):
         return self
 
     def __exit__(self, type, value, traceback):
-        self.fhandle.close()
+        self.close()
 
     @property
     def endianness(self):
