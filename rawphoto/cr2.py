@@ -229,6 +229,17 @@ class Cr2():
     def endianness(self):
         return self.header.endianness
 
+    def get_quarter_size_rgb(self):
+        if len(self.ifds) >= 1:
+            entries = self.ifds[0].entries
+            if 'strip_offset' in entries and 'strip_byte_counts' in entries:
+                pos = self.fhandle.seek(0, 1)
+                self.fhandle.seek(entries['strip_offset'].raw_value)
+                img_data = self.fhandle.read(
+                    entries['strip_byte_counts'].raw_value)
+                self.fhandle.seek(pos)
+                return img_data
+
     def get_thumbnail(self):
         if len(self.ifds) >= 2:
             entries = self.ifds[1].entries
