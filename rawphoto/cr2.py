@@ -212,12 +212,16 @@ class Cr2():
         elif filename is not None:
             self.fhandle = open(filename, "rb")
 
+        pos = self.fhandle.seek(0, 1)
         self.header = Header(self.fhandle.read(16))
         self.ifds = []
         self.ifds.append(Ifd(self.endianness, self.fhandle))
-        for i in range(1, 3):
-            self.fhandle.seek(self.ifds[i - 1].next_ifd_offset)
+        next_ifd_offset = self.ifds[0].next_ifd_offset
+        while next_ifd_offset != 0:
+            self.fhandle.seek(next_ifd_offset)
             self.ifds.append(Ifd(self.endianness, self.fhandle))
+            next_ifd_offset = self.ifds[len(self.ifds) - 1].next_ifd_offset
+        self.fhandle.seek(pos)
 
     def __enter__(self):
         return self
@@ -229,9 +233,9 @@ class Cr2():
     def endianness(self):
         return self.header.endianness
 
-    def get_quarter_size_rgb(self):
-        if len(self.ifds) >= 1:
-            entries = self.ifds[0].entries
+    def _get_image_data(self, ifd_num):
+        if len(self.ifds) >= ifd_num + 1:
+            entries = self.ifds[ifd_num].entries
             if 'strip_offset' in entries and 'strip_byte_counts' in entries:
                 pos = self.fhandle.seek(0, 1)
                 self.fhandle.seek(entries['strip_offset'].raw_value)
@@ -239,6 +243,15 @@ class Cr2():
                     entries['strip_byte_counts'].raw_value)
                 self.fhandle.seek(pos)
                 return img_data
+
+    def get_quarter_size_rgb(self):
+        return self._get_image_data(0)
+
+    def get_uncompressed_rgb_no_white_balance(self):
+        return self._get_image_data(2)
+
+    def get_raw_data(self):
+        return self._get_image_data(3)
 
     def get_thumbnail(self):
         if len(self.ifds) >= 2:
