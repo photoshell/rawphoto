@@ -1,3 +1,8 @@
 -e .
 
+coverage
+flake8
+pylint
 pre-commit
+pytest
+tox
