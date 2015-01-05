@@ -1,4 +1,3 @@
-import os
 import struct
 
 from collections import namedtuple
@@ -110,11 +109,11 @@ tag_types = {
 class Header(_HeaderFields):
     __slots__ = ()
 
-    def __new__(cls, header_bytes):
-        [endianness] = struct.unpack_from('>H', header_bytes)
+    def __new__(cls, bytes=None):
+        [endianness] = struct.unpack_from('>H', bytes)
 
         endianness = endian_flags.get(endianness, "@")
-        raw_header = struct.unpack(endianness + 'HHLHBBL', header_bytes)
+        raw_header = struct.unpack(endianness + 'HHLHBBL', bytes)
 
         return super().__new__(cls, endianness, raw_header, *raw_header[1:])
 
