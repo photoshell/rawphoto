@@ -121,7 +121,7 @@ class Header(_HeaderFields):
 class IfdEntry(_IfdEntryFields):
     __slots__ = ()
 
-    def __new__(cls, endianness, file=None, blob=None, offset=None):
+    def __new__(cls, endianness, file=None, blob=None, offset=0):
         if sum([i is not None for i in [file, blob]]) != 1:
             raise TypeError("IfdEntry must specify file or blob")
 
@@ -142,7 +142,7 @@ class IfdEntry(_IfdEntryFields):
         if offset is not None:
             fhandle.seek(offset)
 
-        tag_id, tag_type_key, value_len = unpack_at('HHL', 0)
+        tag_id, tag_type_key, value_len = unpack_at('HHL', offset)
         if tag_id in tags:
             tag_name = tags[tag_id]
         else:
@@ -150,10 +150,10 @@ class IfdEntry(_IfdEntryFields):
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
             # If the value is a pointer to something small:
-            [raw_value] = unpack_at('L', 8)
+            [raw_value] = unpack_at('L', 8 + offset)
         else:
             # If the value is not an offset go ahead and read it:
-            [raw_value] = unpack_at(tag_type, 8)
+            [raw_value] = unpack_at(tag_type, 8 + offset)
 
         # Rewind the file...
         fhandle.seek(pos)
