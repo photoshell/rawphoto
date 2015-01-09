@@ -12,5 +12,9 @@ and configure [pre-commit][precommit]. If your code doesn't pass our pre-commit
 tests, it won't be merged. It should also have full test coverage (and build,
 obviously).
 
+Finally, your code should be compatible with both Python 2 and 3 (see `tox.ini`
+for the versions we actually test against; needless to say, the entire test
+matrix should pass).
+
 [source]: https://github.com/photoshell/rawphoto
 [precommit]: http://pre-commit.com/

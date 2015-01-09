@@ -1,7 +1,7 @@
 import struct
 
 from collections import namedtuple
-from io import BufferedReader
+from io import BytesIO
 
 # Mapping from manufacturer to associated endianness as accepted by struct
 endian_flags = {
@@ -109,22 +109,39 @@ tag_types = {
 class Header(_HeaderFields):
     __slots__ = ()
 
-    def __new__(cls, bytes=None):
-        [endianness] = struct.unpack_from('>H', bytes)
+    def __new__(cls, blob=None):
+        [endianness] = struct.unpack_from('>H', blob)
 
         endianness = endian_flags.get(endianness, "@")
-        raw_header = struct.unpack(endianness + 'HHLHBBL', bytes)
+        raw_header = struct.unpack(endianness + 'HHLHBBL', blob)
 
-        return super().__new__(cls, endianness, raw_header, *raw_header[1:])
+        return super(Header, cls).__new__(cls, endianness, raw_header, *raw_header[1:])
 
 
 class IfdEntry(_IfdEntryFields):
     __slots__ = ()
 
-    def __new__(cls, endianness, entry_bytes):
+    def __new__(cls, endianness, file=None, blob=None, offset=None):
+        if sum([i is not None for i in [file, blob]]) != 1:
+            raise TypeError("IfdEntry must specify file or blob")
+
+        if file is not None:
+            fhandle = file
+        elif blob is not None:
+            fhandle = BytesIO(blob)
+
         def unpack_at(tag_type, offset):
-            return struct.unpack_from(endianness + tag_type, entry_bytes,
-                                      offset)
+            p = fhandle.seek(0, 1)
+            fhandle.seek(offset)
+            buf = fhandle.read(struct.calcsize(tag_type))
+            s = struct.unpack_from(endianness + tag_type, buf)
+            fhandle.seek(p)
+            return s
+
+        pos = fhandle.seek(0, 1)
+        if offset is not None:
+            fhandle.seek(offset)
+
         tag_id, tag_type_key, value_len = unpack_at('HHL', 0)
         if tag_id in tags:
             tag_name = tags[tag_id]
@@ -132,58 +149,68 @@ class IfdEntry(_IfdEntryFields):
             tag_name = tag_id
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
-            # If the value is a pointer to something small, read it:
+            # If the value is a pointer to something small:
             [raw_value] = unpack_at('L', 8)
         else:
             # If the value is not an offset go ahead and read it:
             [raw_value] = unpack_at(tag_type, 8)
 
-        return super().__new__(cls, tag_id, tag_name, tag_type, value_len,
-                               raw_value)
+        # Rewind the file...
+        fhandle.seek(pos)
+
+        return super(IfdEntry, cls).__new__(cls, tag_id, tag_name, tag_type, value_len,
+                                            raw_value)
 
 
 class Ifd(object):
 
-    def __init__(self, endianness, image_file, offset=None):
+    def __init__(self, endianness, file=None, blob=None, offset=None):
+        if sum([i is not None for i in [file, blob]]) != 1:
+            raise TypeError("IFD must specify file or blob")
+
+        if file is not None:
+            self.fhandle = file
+        elif blob is not None:
+            self.fhandle = BytesIO(blob)
+
         def read_tag(tag_type):
-            buf = image_file.read(struct.calcsize(tag_type))
+            buf = self.fhandle.read(struct.calcsize(tag_type))
             return struct.unpack_from(endianness + tag_type, buf)
 
-        self.image_file = image_file
-        pos = self.image_file.seek(0, 1)
+        pos = self.fhandle.seek(0, 1)
         if offset is not None:
-            self.image_file.seek(offset)
+            self.fhandle.seek(offset)
 
         self.endianness = endianness
         [num_entries] = read_tag('H')
 
         self.entries = {}
         self.subifds = {}
-        buf = image_file.read(12 * num_entries)
+        buf = self.fhandle.read(12 * num_entries)
         for i in range(num_entries):
-            e = IfdEntry(endianness, buf[(12 * i):(12 * (i + 1))])
+            e = IfdEntry(endianness, blob=buf[(12 * i):(12 * (i + 1))])
             self.entries[e.tag_name] = e
             if e.tag_id in subdirs:
-                self.subifds[e.tag_name] = Ifd(endianness, image_file,
-                                               e.raw_value)
+                self.subifds[e.tag_name] = Ifd(endianness, file=self.fhandle,
+                                               offset=e.raw_value)
         [self.next_ifd_offset] = read_tag('H')
-        self.image_file.seek(pos)
+        self.fhandle.seek(pos)
 
     def get_value(self, entry):
         tag_type = entry.tag_type
         size = struct.calcsize(tag_type)
         if size > 4 or tag_type == 's' or tag_type == 'p':
             # Read value
-            pos = self.image_file.seek(0, 1)
-            self.image_file.seek(entry.raw_value)
+            pos = self.fhandle.seek(0, 1)
+            self.fhandle.seek(entry.raw_value)
             if tag_type == 's' or tag_type == 'p':
-                buf = self.image_file.read(entry.value_len)
+                buf = self.fhandle.read(entry.value_len)
                 [value] = struct.unpack_from('{}{}'.format(entry.value_len,
                                                            tag_type), buf)
                 if tag_type == 's':
                     value = value.rstrip(b'\0').decode("utf-8")
             else:
-                buf = self.image_file.read(size)
+                buf = self.fhandle.read(size)
                 if len(buf) >= size:
                     [value] = struct.unpack_from(
                         self.endianness + tag_type, buf)
@@ -192,7 +219,7 @@ class Ifd(object):
                     value = entry.raw_value
 
             # Be polite and rewind the file...
-            self.image_file.seek(pos)
+            self.fhandle.seek(pos)
             return value
         else:
             # Return existing value
@@ -203,22 +230,25 @@ class Cr2():
 
     def __init__(self, image=None, blob=None, file=None, filename=None):
 
+        if sum([i is not None for i in [file, blob, filename, image]]) != 1:
+            raise TypeError("IFD must specify one input")
+
         # TODO: Raise a TypeError if multiple arguments are supplied?
         if file is not None:
             self.fhandle = file
         elif blob is not None:
-            self.fhandle = BufferedReader(blob)
+            self.fhandle = BytesIO(blob)
         elif filename is not None:
             self.fhandle = open(filename, "rb")
 
         pos = self.fhandle.seek(0, 1)
         self.header = Header(self.fhandle.read(16))
         self.ifds = []
-        self.ifds.append(Ifd(self.endianness, self.fhandle))
+        self.ifds.append(Ifd(self.endianness, file=self.fhandle))
         next_ifd_offset = self.ifds[0].next_ifd_offset
         while next_ifd_offset != 0:
             self.fhandle.seek(next_ifd_offset)
-            self.ifds.append(Ifd(self.endianness, self.fhandle))
+            self.ifds.append(Ifd(self.endianness, file=self.fhandle))
             next_ifd_offset = self.ifds[len(self.ifds) - 1].next_ifd_offset
         self.fhandle.seek(pos)
 
