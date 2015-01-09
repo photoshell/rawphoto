@@ -154,6 +154,7 @@ class IfdEntry(_IfdEntryFields):
         else:
             # If the value is not an offset go ahead and read it:
             [raw_value] = unpack_at(tag_type, 8 + offset)
+            fhandle.seek(pos)
 
         # Rewind the file...
         fhandle.seek(pos)
