@@ -115,7 +115,8 @@ class Header(_HeaderFields):
         endianness = endian_flags.get(endianness, "@")
         raw_header = struct.unpack(endianness + 'HHLHBBL', blob)
 
-        return super(Header, cls).__new__(cls, endianness, raw_header, *raw_header[1:])
+        return super(Header, cls).__new__(cls, endianness, raw_header,
+                                          *raw_header[1:])
 
 
 class IfdEntry(_IfdEntryFields):
@@ -130,19 +131,16 @@ class IfdEntry(_IfdEntryFields):
         elif blob is not None:
             fhandle = BytesIO(blob)
 
-        def unpack_at(tag_type, offset):
-            p = fhandle.seek(0, 1)
-            fhandle.seek(offset)
-            buf = fhandle.read(struct.calcsize(tag_type))
+        def unpack_at(tag_type):
+            buf = fhandle.read(struct.calcsize(endianness + tag_type))
             s = struct.unpack_from(endianness + tag_type, buf)
-            fhandle.seek(p)
             return s
 
         pos = fhandle.seek(0, 1)
         if offset is not None:
             fhandle.seek(offset)
 
-        tag_id, tag_type_key, value_len = unpack_at('HHL', offset)
+        tag_id, tag_type_key, value_len = unpack_at('HHL')
         if tag_id in tags:
             tag_name = tags[tag_id]
         else:
@@ -150,17 +148,18 @@ class IfdEntry(_IfdEntryFields):
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's' or tag_type == 'p':
             # If the value is a pointer to something small:
-            [raw_value] = unpack_at('L', 8 + offset)
+            [raw_value] = unpack_at('L')
         else:
             # If the value is not an offset go ahead and read it:
-            [raw_value] = unpack_at(tag_type, 8 + offset)
+            [raw_value] = unpack_at(tag_type)
             fhandle.seek(pos)
 
         # Rewind the file...
-        fhandle.seek(pos)
+        if pos is not None:
+            fhandle.seek(pos)
 
-        return super(IfdEntry, cls).__new__(cls, tag_id, tag_name, tag_type, value_len,
-                                            raw_value)
+        return super(IfdEntry, cls).__new__(cls, tag_id, tag_name, tag_type,
+                                            value_len, raw_value)
 
 
 class Ifd(object):
