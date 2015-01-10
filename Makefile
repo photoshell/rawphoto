@@ -38,3 +38,8 @@ clean:
 	rm -rf .tox
 	rm -rf $(VENV)
 	$(MAKE) -C art $@
+
+.PHONY: upload
+upload: build test
+	python setup.py sdist upload
+	python setup.py sdist bdist_wheel upload
