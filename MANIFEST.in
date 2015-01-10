@@ -1,2 +1,9 @@
-include README.md
 include LICENSE
+include *.md
+include *.txt
+include *.yaml
+include .coveragerc
+include Makefile
+include pylintrc
+include tox.ini
+recursive-include tests *.py
