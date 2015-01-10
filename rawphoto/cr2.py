@@ -102,6 +102,11 @@ tag_types = {
     0xC: 'd',  # Double (IEEE)
 }
 
+
+def read_tag(tag_type, fhandle):
+    buf = fhandle.read(struct.calcsize(tag_type))
+    return struct.unpack_from(tag_type, buf)
+
 # Format info: http://lclevy.free.fr/cr2/
 # The Cr2 class loads a CR2 file from disk. It is currently read-only.
 
@@ -131,15 +136,11 @@ class IfdEntry(_IfdEntryFields):
         elif blob is not None:
             fhandle = BytesIO(blob)
 
-        def unpack_at(tag_type):
-            buf = fhandle.read(struct.calcsize(endianness + tag_type))
-            return struct.unpack_from(endianness + tag_type, buf)
-
         pos = fhandle.seek(0, 1)
         if offset is not None:
             fhandle.seek(offset)
 
-        tag_id, tag_type_key, value_len = unpack_at('HHL')
+        tag_id, tag_type_key, value_len = read_tag(endianness + 'HHL', fhandle)
         if tag_id in tags:
             tag_name = tags[tag_id]
         else:
@@ -147,10 +148,10 @@ class IfdEntry(_IfdEntryFields):
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's':
             # If the value is a pointer to something small:
-            [raw_value] = unpack_at('L')
+            [raw_value] = read_tag(endianness + 'L', fhandle)
         else:
             # If the value is not an offset go ahead and read it:
-            [raw_value] = unpack_at(tag_type)
+            [raw_value] = read_tag(endianness + tag_type, fhandle)
             fhandle.seek(pos)
 
         # Rewind the file...
@@ -172,16 +173,12 @@ class Ifd(object):
         elif blob is not None:
             self.fhandle = BytesIO(blob)
 
-        def read_tag(tag_type):
-            buf = self.fhandle.read(struct.calcsize(tag_type))
-            return struct.unpack_from(endianness + tag_type, buf)
-
         pos = self.fhandle.seek(0, 1)
         if offset is not None:
             self.fhandle.seek(offset)
 
         self.endianness = endianness
-        [num_entries] = read_tag('H')
+        [num_entries] = read_tag(endianness + 'H', self.fhandle)
 
         self.entries = {}
         self.subifds = {}
@@ -192,13 +189,13 @@ class Ifd(object):
             if e.tag_id in subdirs:
                 self.subifds[e.tag_name] = Ifd(endianness, file=self.fhandle,
                                                offset=e.raw_value)
-        [self.next_ifd_offset] = read_tag('H')
+        [self.next_ifd_offset] = read_tag(endianness + 'H', self.fhandle)
         if pos is not None:
             self.fhandle.seek(pos)
 
     def get_value(self, entry):
         tag_type = entry.tag_type
-        size = struct.calcsize(tag_type)
+        size = struct.calcsize(self.endianness + tag_type)
         if size > 4 or tag_type == 's':
             # Read value
             pos = self.fhandle.seek(0, 1)
