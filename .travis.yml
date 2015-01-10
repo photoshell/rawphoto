@@ -1,8 +1,4 @@
 language: python
-python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
 # Keep up to date with the tox.ini list
 env:
   - TOXENV=py27
