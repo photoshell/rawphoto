@@ -24,19 +24,19 @@ test: $(VENV)
 	$(ACTIVATE); tox $(REBUILD_FLAG)
 
 dist/*.whl: setup.py rawphoto/*.py
-	python setup.py sdist bdist_wheel
+	python setup.py bdist_wheel
 
 dist/*.tar.gz: setup.py rawphoto/*.py
-	python setup.py sdist bdist_wheel
+	python setup.py sdist bdist
 
 .PHONY: wheel
 wheel: dist/*.whl
 
-.PHONY: sdist
-sdist: dist/*.tar.gz
+.PHONY: dist
+dist: dist/*.tar.gz
 
 .PHONY: build
-build: pre-commit wheel sdist
+build: pre-commit wheel dist
 
 .PHONY: clean
 clean:
@@ -46,4 +46,4 @@ clean:
 
 .PHONY: upload
 upload: build test
-	python setup.py sdist bdist_wheel upload
+	python setup.py sdist bidst bdist_wheel upload
