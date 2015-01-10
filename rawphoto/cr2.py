@@ -103,12 +103,15 @@ tag_types = {
 }
 
 
-def read_tag(tag_type, fhandle):
-    buf = fhandle.read(struct.calcsize(tag_type))
-    return struct.unpack_from(tag_type, buf)
+def _read_tag(tag_type, fhandle):
+    """Read and unpack bytes from a file.
 
-# Format info: http://lclevy.free.fr/cr2/
-# The Cr2 class loads a CR2 file from disk. It is currently read-only.
+    Args:
+        tag_type - A struct format string
+        fhandle - A file like object to read from
+    """
+    buf = fhandle.read(struct.calcsize(tag_type))
+    return struct.unpack(tag_type, buf)
 
 
 class Header(_HeaderFields):
@@ -140,7 +143,8 @@ class IfdEntry(_IfdEntryFields):
         if offset is not None:
             fhandle.seek(offset)
 
-        tag_id, tag_type_key, value_len = read_tag(endianness + 'HHL', fhandle)
+        tag_id, tag_type_key, value_len = _read_tag(endianness + 'HHL',
+                                                    fhandle)
         if tag_id in tags:
             tag_name = tags[tag_id]
         else:
@@ -148,10 +152,10 @@ class IfdEntry(_IfdEntryFields):
         tag_type = tag_types[tag_type_key]
         if struct.calcsize(tag_type) > 4 or tag_type == 's':
             # If the value is a pointer to something small:
-            [raw_value] = read_tag(endianness + 'L', fhandle)
+            [raw_value] = _read_tag(endianness + 'L', fhandle)
         else:
             # If the value is not an offset go ahead and read it:
-            [raw_value] = read_tag(endianness + tag_type, fhandle)
+            [raw_value] = _read_tag(endianness + tag_type, fhandle)
             fhandle.seek(pos)
 
         # Rewind the file...
@@ -178,7 +182,7 @@ class Ifd(object):
             self.fhandle.seek(offset)
 
         self.endianness = endianness
-        [num_entries] = read_tag(endianness + 'H', self.fhandle)
+        [num_entries] = _read_tag(endianness + 'H', self.fhandle)
 
         self.entries = {}
         self.subifds = {}
@@ -189,11 +193,16 @@ class Ifd(object):
             if e.tag_id in subdirs:
                 self.subifds[e.tag_name] = Ifd(endianness, file=self.fhandle,
                                                offset=e.raw_value)
-        [self.next_ifd_offset] = read_tag(endianness + 'H', self.fhandle)
+        [self.next_ifd_offset] = _read_tag(endianness + 'H', self.fhandle)
         if pos is not None:
             self.fhandle.seek(pos)
 
     def get_value(self, entry):
+        """Get the value of an entry in the IFD.
+
+        Args:
+            entry - The IFDEntry to read the value for.
+        """
         tag_type = entry.tag_type
         size = struct.calcsize(self.endianness + tag_type)
         if size > 4 or tag_type == 's':
@@ -253,9 +262,15 @@ class Cr2():
         self.fhandle.seek(pos)
 
     def read(self, *args):
+        """Read data from the CR2 file handle
+
+        Arguments are passed through to fhandle.read.
+        """
         return self.fhandle.read(*args)
 
     def close(self):
+        """Closes the CR2 file handle.
+        """
         return self.fhandle.close()
 
     def __enter__(self):
@@ -266,9 +281,15 @@ class Cr2():
 
     @property
     def endianness(self):
+        """The endianness format flag for the CR2 file."""
         return self.header.endianness
 
     def _get_image_data(self, ifd_num):
+        """Gets image data from one of the IFDs.
+
+        Args:
+            ifd_num - The IFD to read an image from.
+        """
         if len(self.ifds) >= ifd_num + 1:
             entries = self.ifds[ifd_num].entries
             if 'strip_offset' in entries and 'strip_byte_counts' in entries:
@@ -280,15 +301,19 @@ class Cr2():
                 return img_data
 
     def get_quarter_size_rgb(self):
+        """Read a quarter sized image as RGB data from the CR2 file."""
         return self._get_image_data(0)
 
     def get_uncompressed_rgb_no_white_balance(self):
+        """Read uncompressed RGB data with no WB settings from the CR2."""
         return self._get_image_data(2)
 
     def get_raw_data(self):
+        """Read the raw image data from the CR2."""
         return self._get_image_data(3)
 
     def get_thumbnail(self):
+        """Read a thumbnail image from the CR2."""
         if len(self.ifds) >= 2:
             entries = self.ifds[1].entries
             if 'thumbnail_length' in entries and 'thumbnail_offset' in entries:
