@@ -6,6 +6,10 @@ import pytest
 ifd_bytes = b'''\
 \x02\x00\x01\x02\x04\x00\x01\x00\x00\x00\x08\xd7\x00\x00\x02\x02\x04\x00\x01\x00\x00\x00P-\x00\x00\xee\xb5\x00\x00
 '''
+ifd_bytes_sub_ifd = b'''\
+\x01\x00i\x87\x04\x00\x01\x00\x00\x00\x12\x00\x00\x00\x12\x00\x00\x00\
+\x01\x00\x01\x02\x04\x00\x01\x00\x00\x00\x08\xd7\x00\x00\x00\x00\x00\x00
+'''
 
 
 def test_ifd_must_have_single_data_source():
@@ -34,7 +38,13 @@ def test_new_ifd_from_blob_with_offset():
     assert len(ifd.entries) == 2
 
 
-# TODO: Add test for sub-ifd parsing.
+def test_ifds_must_parse_sub_ifds():
+    ifd = Ifd("<", blob=ifd_bytes_sub_ifd)
+    assert 'exif' in ifd.entries
+    assert len(ifd.subifds) == 1
+    assert 'exif' in ifd.subifds
+    assert 'thumbnail_offset' in ifd.subifds['exif'].entries
+
 
 def test_get_value_invalid_offset():
     ifd = Ifd("<", blob=ifd_bytes)
