@@ -29,15 +29,20 @@ dist/*.whl: setup.py rawphoto/*.py
 dist/*.tar.gz: setup.py rawphoto/*.py
 	python setup.py sdist bdist_wheel
 
+.PHONY: wheel
+wheel: dist/*.whl
+
+.PHONY: sdist
+sdist: dist/*.tar.gz
+
 .PHONY: build
-build: pre-commit dist/*.whl dist/*.tar.gz
+build: pre-commit wheel sdist
 
 .PHONY: clean
 clean:
 	find . -iname '*.pyc' | xargs rm -f
 	rm -rf .tox
 	rm -rf $(VENV)
-	$(MAKE) -C art $@
 
 .PHONY: upload
 upload: build test
