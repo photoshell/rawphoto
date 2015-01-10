@@ -23,8 +23,14 @@ $(VENV)/bin/activate: requirements-dev.txt
 test: $(VENV)
 	$(ACTIVATE); tox $(REBUILD_FLAG)
 
+dist/*.whl: setup.py rawphoto/*.py
+	python setup.py sdist bdist_wheel
+
+dist/*.tar.gz: setup.py rawphoto/*.py
+	python setup.py sdist bdist_wheel
+
 .PHONY: build
-build: pre-commit
+build: pre-commit dist/*.whl dist/*.tar.gz
 
 .PHONY: clean
 clean:

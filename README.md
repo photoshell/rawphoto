@@ -8,3 +8,9 @@ This package facilitates the parsing of raw photo formats in Python.
 Supported formats include:
 
   - Canon CR2
+
+## Installing
+
+Using pip:
+
+    $ pip install rawphoto
