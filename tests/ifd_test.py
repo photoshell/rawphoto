@@ -24,6 +24,22 @@ ifd_bytes_byte_array = b'''\
 \x00\x00\x00\x00Canon\x00
 '''
 
+ifd_bytes_double = b'''\
+\x01\x00\
+\x0f\x01\x0c\x00\x06\x00\x00\x00\x12\x00\x00\x00\
+\x00\x00\x00\x00\x1f\x85\xebQ\xb8\x1e\t@
+'''
+
+ifd_bytes_float = b'''\
+\x01\x00\
+\x0f\x01\x0b\x00\x06\x00\x00\x00)\\\xcf?\
+\x00\x00\x00\x00
+'''
+
+ifd_bytes_invalid_pointer = b'''\
+\x01\x00\x0f\x01\x0c\x00\x06\x00\x00\x00\x12\x12\x12\x12\x00\x00\x00\x00
+'''
+
 
 def test_ifd_must_have_single_data_source():
     with pytest.raises(TypeError):
@@ -81,5 +97,20 @@ def test_ifd_get_byte_array_value():
     assert isinstance(val, bytes)
     assert val == b'Canon\x00'
 
-# TODO: Add test of reading decimal or other value with indirect
-# TODO: Add test of reading in-place value
+
+def test_ifd_get_double():
+    ifd = Ifd("<", blob=ifd_bytes_double)
+    val = ifd.get_value(ifd.entries['make'])
+    assert round(val - 3.14, 2) == 0
+
+
+def test_ifd_get_float():
+    ifd = Ifd("<", blob=ifd_bytes_float)
+    val = ifd.get_value(ifd.entries['make'])
+    assert round(val - 1.62, 2) == 0
+
+
+def test_ifd_invalid_pointer():
+    ifd = Ifd("<", blob=ifd_bytes_invalid_pointer)
+    val = ifd.get_value(ifd.entries['make'])
+    assert val == 303174162
