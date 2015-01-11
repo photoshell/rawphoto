@@ -238,7 +238,7 @@ class Cr2():
     def __init__(self, blob=None, file=None, filename=None):
 
         if sum([i is not None for i in [file, blob, filename]]) != 1:
-            raise TypeError("IFD must specify exactly one input")
+            raise TypeError("Cr2 must specify exactly one input")
 
         if file is not None:
             self.fhandle = file
