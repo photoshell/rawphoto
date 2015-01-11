@@ -11,7 +11,7 @@ def discover(path):
 
     for root, _, files in os.walk(path):
         for file_name in files:
-            if os.path.splitext(file_name)[1] in raw_formats:
+            if os.path.splitext(file_name)[1].upper() in raw_formats:
                 file_path = os.path.join(root, file_name)
                 file_list.append(file_path)
 
