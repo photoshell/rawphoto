@@ -297,27 +297,20 @@ class Cr2():
         Args:
             ifd_num - The IFD to read an image from.
         """
-        if len(self.ifds) >= ifd_num + 1:
-            entries = self.ifds[ifd_num].entries
-            if 'strip_offset' in entries and 'strip_byte_counts' in entries:
-                pos = self.fhandle.seek(0, 1)
-                self.fhandle.seek(entries['strip_offset'].raw_value)
-                img_data = self.fhandle.read(
-                    entries['strip_byte_counts'].raw_value)
-                self.fhandle.seek(pos)
-                return img_data
+        entries = self.ifds[ifd_num].entries
+        if 'strip_offset' in entries and 'strip_byte_counts' in entries:
+            pos = self.fhandle.seek(0, 1)
+            self.fhandle.seek(entries['strip_offset'].raw_value)
+            img_data = self.fhandle.read(
+                entries['strip_byte_counts'].raw_value)
+            self.fhandle.seek(pos)
+            return img_data
+        else:
+            return None
 
     def get_quarter_size_rgb(self):
         """Read a quarter sized image as RGB data from the CR2 file."""
         return self._get_image_data(0)
-
-    def get_uncompressed_rgb_no_white_balance(self):
-        """Read uncompressed RGB data with no WB settings from the CR2."""
-        return self._get_image_data(2)
-
-    def get_raw_data(self):
-        """Read the raw image data from the CR2."""
-        return self._get_image_data(3)
 
     def get_thumbnail(self):
         """Read a thumbnail image from the CR2."""
@@ -330,3 +323,15 @@ class Cr2():
                     entries['thumbnail_length'].raw_value)
                 self.fhandle.seek(pos)
                 return img_data
+            else:
+                return None
+        else:
+            raise IndexError
+
+    def get_uncompressed_rgb_no_white_balance(self):
+        """Read uncompressed RGB data with no WB settings from the CR2."""
+        return self._get_image_data(2)
+
+    def get_raw_data(self):
+        """Read the raw image data from the CR2."""
+        return self._get_image_data(3)
