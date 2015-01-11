@@ -235,12 +235,11 @@ class Ifd(object):
 
 class Cr2():
 
-    def __init__(self, image=None, blob=None, file=None, filename=None):
+    def __init__(self, blob=None, file=None, filename=None):
 
-        if sum([i is not None for i in [file, blob, filename, image]]) != 1:
+        if sum([i is not None for i in [file, blob, filename]]) != 1:
             raise TypeError("IFD must specify exactly one input")
 
-        # TODO: Raise a TypeError if multiple arguments are supplied?
         if file is not None:
             self.fhandle = file
         elif blob is not None:
@@ -248,18 +247,19 @@ class Cr2():
         elif filename is not None:
             self.fhandle = open(filename, "rb")
 
-        pos = self.fhandle.seek(0, 1)
-        self.header = Header(self.fhandle.read(16))
+        pos = self.seek(0, 1)
+        self.header = Header(self.read(16))
         self.ifds = []
         self.ifds.append(Ifd(self.endianness, file=self.fhandle))
         next_ifd_offset = self.ifds[0].next_ifd_offset
 
         while next_ifd_offset != 0:
-            self.fhandle.seek(next_ifd_offset)
+            self.seek(next_ifd_offset)
             self.ifds.append(Ifd(self.endianness, file=self.fhandle))
             next_ifd_offset = self.ifds[len(self.ifds) - 1].next_ifd_offset
 
-        self.fhandle.seek(pos)
+        if pos is not None:
+            self.seek(pos)
 
     def read(self, *args):
         """Read data from the CR2 file handle
@@ -267,6 +267,13 @@ class Cr2():
         Arguments are passed through to fhandle.read.
         """
         return self.fhandle.read(*args)
+
+    def seek(self, *args):
+        """Seek in the CR2 file
+
+        Arguments are passed through to fhandle.seek.
+        """
+        return self.fhandle.seek(*args)
 
     def close(self):
         """Closes the CR2 file handle.
