@@ -9,7 +9,6 @@ env:
 install:
   - "pip install coveralls tox --use-mirrors"
 script:
-  - make build
   - make test
 after_success:
   - coveralls
