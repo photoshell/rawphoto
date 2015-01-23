@@ -46,4 +46,4 @@ clean:
 
 .PHONY: upload
 upload: build test
-	python setup.py sdist bidst bdist_wheel upload
+	python setup.py sdist bdist bdist_wheel upload
