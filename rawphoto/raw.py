@@ -1,8 +1,25 @@
 import os
+import hashlib
 
+from collections import namedtuple
+from rawphoto.cr2 import Cr2
 from rawphoto import cr2
 
 raw_formats = ['.CR2']
+
+
+def _hash_file(file_path):
+    """Hash a file"""
+    hash = hashlib.sha1()
+
+    # TODO: probably block size or something, although if your machine
+    # can't hold the whole file in memory you probably can't edit it
+    # anyway.
+    with open(file_path, 'rb') as f:
+        data = f.read()
+
+    hash.update(data)
+    return hash.hexdigest()
 
 
 def discover(path):
@@ -18,36 +35,42 @@ def discover(path):
     return file_list
 
 
-def read_meta(path, file_hash=None):
-    # TODO: if file_hash is None, compute it
+_Raw = namedtuple("Raw", [
+    "fhandle", "metadata"
+])
 
-    file_ext = os.path.splitext(path)[1]
 
-    metadata = {}
-    with open(path, 'rb') as file:
-        if file_ext.lower() == ".cr2".lower():
-            i = cr2.Cr2(file=file)
+class Raw(_Raw):
+    __slots__ = ()
+
+    def __new__(cls, filename=None):
+        ext = os.path.splitext(filename)[1].upper()
+        if ext not in raw_formats:
+            raise TypeError("File format not recognized")
+        metadata = {}
+        if ext == '.CR2':
+            file_hash = _hash_file(filename)
+            fhandle = Cr2(filename=filename)
             for tag in cr2.tags.values():
-                e = i.ifds[0].entries.get(tag)
+                e = fhandle.ifds[0].entries.get(tag)
                 if e is not None:
-                    metadata[tag] = i.ifds[0].get_value(e)
-        else:
-            # I want this to crash for now
-            return None
-            # i = wand.Image(file=file)
-            # for key, value in i.metadata.items():
-            #     if key.startswith('exif:DateTime'):
-            #         dt = value
-            #     if key.startswith('exif:'):
-            #         metadata[key] = value
+                    metadata[tag] = fhandle.ifds[0].get_value(e)
+        metadata = {
+            'datetime': metadata.get('datetime', ''),
+            'width': metadata.get('image_width', ''),
+            'height': metadata.get('image_length', ''),
+            'make': metadata.get('make', ''),
+            'model': metadata.get('model', ''),
+            'file_hash': file_hash,
+        }
 
-    # TODO: this is based on low level structure of CR2 files, it should be
-    # extracted to rawphoto and generalized.
-    return {
-        'datetime': metadata.get('datetime', ''),
-        'width': metadata.get('image_width', ''),
-        'height': metadata.get('image_length', ''),
-        'make': metadata.get('make', ''),
-        'model': metadata.get('model', ''),
-        'file_hash': file_hash,
-    }
+        return super(Raw, cls).__new__(cls, fhandle, metadata)
+
+    def __enter__(self):
+        return self
+
+    def close(self):
+        self.fhandle.close()
+
+    def __exit__(self, type, value, traceback):
+        self.close()
