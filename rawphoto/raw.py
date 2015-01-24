@@ -55,6 +55,8 @@ class Raw(_Raw):
                 e = fhandle.ifds[0].entries.get(tag)
                 if e is not None:
                     metadata[tag] = fhandle.ifds[0].get_value(e)
+        else:
+            raise TypeError("File format not recognized")
         metadata = {
             'datetime': metadata.get('datetime', ''),
             'width': metadata.get('image_width', ''),

@@ -37,7 +37,13 @@ def test_filename_not_stringtype():
 
 def test_unrecognized_format_raises_type_error():
     with pytest.raises(TypeError):
-        Raw('file.ABC')
+        Raw('file.FAKE')
+
+    # Even if the format is in the supported list, it still needs to have
+    # actual support.
+    raw.raw_formats = ['.CR2', '.FAKEFORMAT']
+    with pytest.raises(TypeError):
+        Raw('file.FAKEFORMAT')
 
 
 def test_cr2_is_supported(tmpdir):
