@@ -36,7 +36,7 @@ def discover(path):
 
 
 _Raw = namedtuple("Raw", [
-    "fhandle", "metadata"
+    "raw_format", "fhandle", "metadata"
 ])
 
 
@@ -55,6 +55,7 @@ class Raw(_Raw):
                 e = fhandle.ifds[0].entries.get(tag)
                 if e is not None:
                     metadata[tag] = fhandle.ifds[0].get_value(e)
+            raw_format = 'CR2'
         else:
             raise TypeError("File format not recognized")
         metadata = {
@@ -66,7 +67,7 @@ class Raw(_Raw):
             'file_hash': file_hash,
         }
 
-        return super(Raw, cls).__new__(cls, fhandle, metadata)
+        return super(Raw, cls).__new__(cls, raw_format, fhandle, metadata)
 
     def __enter__(self):
         return self

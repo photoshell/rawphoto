@@ -5,6 +5,12 @@ from rawphoto.raw import Raw
 from tests.cr2_test import cr2_bytes
 
 
+@pytest.fixture
+def cr2_file(tmpdir):
+    tmpdir.join("file.cr2").write_binary(cr2_bytes)
+    return tmpdir.strpath + '/file.cr2'
+
+
 def test_hash_sha1(tmpdir):
     tmpdir.join('file.test').write("Test")
     assert (raw._hash_file(tmpdir.strpath + '/file.test') ==
@@ -46,9 +52,8 @@ def test_unrecognized_format_raises_type_error():
         Raw('file.FAKEFORMAT')
 
 
-def test_cr2_is_supported(tmpdir):
-    tmpdir.join("file.cr2").write_binary(cr2_bytes)
-    with Raw(filename=(tmpdir.strpath + '/file.cr2')) as raw:
+def test_cr2_is_supported(cr2_file):
+    with Raw(filename=cr2_file) as raw:
         assert 'file_hash' in raw.metadata
         assert (raw.metadata['file_hash'] ==
                 '72ada310f7ff4b84d974d62f2c72fc870889f682')
