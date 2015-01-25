@@ -30,22 +30,6 @@ def test_discover_must_ignore_unsupported_extensions(tmpdir):
     assert len(raw.discover(tmpdir.strpath)) == 0
 
 
-def test_filename_not_stringtype():
-    with pytest.raises(AttributeError):
-        Raw(None)
-
-
-def test_unrecognized_format_raises_type_error():
-    with pytest.raises(TypeError):
-        Raw('file.FAKE')
-
-    # Even if the format is in the supported list, it still needs to have
-    # actual support.
-    raw.raw_formats = ['.CR2', '.FAKEFORMAT']
-    with pytest.raises(TypeError):
-        Raw('file.FAKEFORMAT')
-
-
-def test_cr2_is_supported(cr2_file):
-    with Raw(filename=cr2_file):
-        pass
+def test_default_endianness(cr2_file):
+    r = Raw(file=cr2_file)
+    assert r.endianness == "@"

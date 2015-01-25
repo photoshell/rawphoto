@@ -1,5 +1,5 @@
 from rawphoto.cr2 import Cr2
-from tests.header_test import header_bytes
+from tests.cr2_header_test import header_bytes
 from tests.ifd_test import ifd_bytes
 from tests.ifd_test import ifd_bytes_string_value
 from io import BytesIO
@@ -92,30 +92,30 @@ def test_fetching_image_no_exists():
 
 def test_fetching_image():
     with Cr2(blob=header_bytes + ifd_strip_image) as cr2:
-        assert cr2._get_image_data(0) == b'II' == cr2.get_quarter_size_rgb()
+        assert cr2._get_image_data(0) == b'II' == cr2.preview_image
 
 
 def test_fetching_thumbnail_ifd_index_error():
     with Cr2(blob=cr2_bytes) as cr2:
         with pytest.raises(IndexError):
-            cr2.get_thumbnail()
+            cr2.thumbnail_image
 
 
 def test_fetching_thumbnail():
     with Cr2(blob=cr2_thumbnail) as cr2:
-        assert cr2.get_thumbnail() == b'II'
+        assert cr2.thumbnail_image == b'II'
 
 
 def test_fetching_thumbnail_no_exists():
     with Cr2(blob=cr2_multiple_ifds) as cr2:
-        assert cr2.get_thumbnail() is None
+        assert cr2.thumbnail_image is None
 
 
 def test_fetch_uncompressed_rgb_no_white_balance():
     with Cr2(blob=cr2_multiple_ifds) as cr2:
-        assert cr2.get_uncompressed_rgb_no_white_balance() == b'II'
+        assert cr2.uncompressed_full_size_image == b'II'
 
 
 def test_get_raw_data():
     with Cr2(blob=cr2_multiple_ifds) as cr2:
-        assert cr2.get_raw_data() == b'II'
+        assert cr2.raw_data == b'II'

@@ -1,14 +1,10 @@
 from collections import namedtuple
-from io import BytesIO
+from rawphoto.raw import Raw
 from rawphoto.tiff import Ifd
+from rawphoto.tiff import endian_flags
 
 import struct
 
-# Mapping from manufacturer to associated endianness as accepted by struct
-endian_flags = {
-    0x4949: '<',  # Intel
-    0x4D4D: '>',  # Motorola
-}
 
 _HeaderFields = namedtuple("HeaderFields", [
     "endianness", "raw_header", "tiff_magic_word", "tiff_offset",
@@ -97,21 +93,10 @@ class Header(_HeaderFields):
                                           *raw_header[1:])
 
 
-class Cr2():
+class Cr2(Raw):
 
     def __init__(self, blob=None, file=None, filename=None):
-
-        if sum([i is not None for i in [file, blob, filename]]) > 1:
-            raise TypeError("Cr2 must specify exactly one input")
-
-        if file is not None:
-            self.fhandle = file
-        elif blob is not None:
-            self.fhandle = BytesIO(blob)
-        elif filename is not None:
-            self.fhandle = open(filename, "rb")
-        else:
-            raise TypeError("Cr2 must specify at least one input")
+        super(Cr2, self).__init__(blob=blob, file=file, filename=filename)
 
         pos = self.seek(0, 1)
         self.header = Header(self.read(16))
@@ -128,36 +113,6 @@ class Cr2():
 
         if pos is not None:
             self.seek(pos)
-
-    def read(self, *args):
-        """Read data from the CR2 file handle
-
-        Arguments are passed through to fhandle.read.
-        """
-        return self.fhandle.read(*args)
-
-    def seek(self, *args):
-        """Seek in the CR2 file
-
-        Arguments are passed through to fhandle.seek.
-        """
-        return self.fhandle.seek(*args)
-
-    def close(self):
-        """Closes the CR2 file handle.
-        """
-        return self.fhandle.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.close()
-
-    @property
-    def endianness(self):
-        """The endianness format flag for the CR2 file."""
-        return self.header.endianness
 
     def _get_image_data(self, ifd_num):
         """Gets image data from one of the IFDs.
@@ -176,11 +131,13 @@ class Cr2():
         else:
             return None
 
-    def get_quarter_size_rgb(self):
+    @property
+    def preview_image(self):
         """Read a quarter sized image as RGB data from the CR2 file."""
         return self._get_image_data(0)
 
-    def get_thumbnail(self):
+    @property
+    def thumbnail_image(self):
         """Read a thumbnail image from the CR2."""
         if len(self.ifds) >= 2:
             entries = self.ifds[1].entries
@@ -196,10 +153,12 @@ class Cr2():
         else:
             raise IndexError
 
-    def get_uncompressed_rgb_no_white_balance(self):
-        """Read uncompressed RGB data with no WB settings from the CR2."""
+    @property
+    def uncompressed_full_size_image(self):
+        """Read uncompressed JPEG data with no WB settings from the CR2."""
         return self._get_image_data(2)
 
-    def get_raw_data(self):
+    @property
+    def raw_data(self):
         """Read the raw image data from the CR2."""
         return self._get_image_data(3)

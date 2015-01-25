@@ -4,6 +4,12 @@ from io import BytesIO
 import struct
 
 
+# Mapping from manufacturer to associated endianness as accepted by struct
+endian_flags = {
+    0x4949: '<',  # Intel
+    0x4D4D: '>',  # Motorola
+}
+
 # Mapping of tag types to format strings.
 tag_types = {
     0x1: 'B',  # Unsigned char
@@ -30,6 +36,24 @@ def _read_tag(tag_type, fhandle):
     """
     buf = fhandle.read(struct.calcsize(tag_type))
     return struct.unpack(tag_type, buf)
+
+
+_HeaderFields = namedtuple("HeaderFields", [
+    "endianness", "raw_header", "tiff_magic_word", "first_ifd_offset"
+])
+
+
+class Header(_HeaderFields):
+    __slots__ = ()
+
+    def __new__(cls, blob=None):
+        [endianness] = struct.unpack_from('>H', blob)
+
+        endianness = endian_flags.get(endianness, "@")
+        raw_header = struct.unpack(endianness + 'HHL', blob)
+
+        return super(Header, cls).__new__(cls, endianness, raw_header,
+                                          *raw_header[1:])
 
 
 _IfdEntryFields = namedtuple("IfdEntryFields", [

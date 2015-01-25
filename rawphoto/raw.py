@@ -1,8 +1,6 @@
 import os
 
-from collections import namedtuple
-from rawphoto.cr2 import Cr2
-from rawphoto import cr2
+from io import BytesIO
 
 raw_formats = ['.CR2']
 
@@ -20,43 +18,50 @@ def discover(path):
     return file_list
 
 
-_Raw = namedtuple("Raw", [
-    "raw_format", "fhandle", "metadata"
-])
+class Raw(object):
 
+    def __init__(self, blob=None, file=None, filename=None):
 
-class Raw(_Raw):
-    __slots__ = ()
+        if sum([i is not None for i in [file, blob, filename]]) > 1:
+            raise TypeError("Raw must specify only one input")
 
-    def __new__(cls, filename=None):
-        ext = os.path.splitext(filename)[1].upper()
-        if ext not in raw_formats:
-            raise TypeError("File format not recognized")
-        metadata = {}
-        if ext == '.CR2':
-            fhandle = Cr2(filename=filename)
-            for tag in cr2.tags.values():
-                e = fhandle.ifds[0].entries.get(tag)
-                if e is not None:
-                    metadata[tag] = fhandle.ifds[0].get_value(e)
-            raw_format = 'CR2'
+        if file is not None:
+            self.fhandle = file
+        elif blob is not None:
+            self.fhandle = BytesIO(blob)
+        elif filename is not None:
+            self.fhandle = open(filename, "rb")
         else:
-            raise TypeError("File format not recognized")
-        metadata = {
-            'datetime': metadata.get('datetime', ''),
-            'width': metadata.get('image_width', ''),
-            'height': metadata.get('image_length', ''),
-            'make': metadata.get('make', ''),
-            'model': metadata.get('model', ''),
-        }
+            raise TypeError("Raw must specify at least one input")
 
-        return super(Raw, cls).__new__(cls, raw_format, fhandle, metadata)
+    def read(self, *args):
+        """Read data from the CR2 file handle
+
+        Arguments are passed through to fhandle.read.
+        """
+        return self.fhandle.read(*args)
+
+    def seek(self, *args):
+        """Seek in the CR2 file
+
+        Arguments are passed through to fhandle.seek.
+        """
+        return self.fhandle.seek(*args)
+
+    def close(self):
+        """Closes the CR2 file handle.
+        """
+        return self.fhandle.close()
 
     def __enter__(self):
         return self
 
-    def close(self):
-        self.fhandle.close()
-
     def __exit__(self, type, value, traceback):
         self.close()
+
+    @property
+    def endianness(self):
+        if hasattr(self, 'header'):
+            return self.header.endianness
+        else:
+            return "@"
