@@ -8,6 +8,7 @@ import os
 import pytest
 import struct
 
+# TODO: Convert these to fixtures.
 cr2_bytes = header_bytes + ifd_bytes
 ifd_strip_image = b'''\
 \x02\x00\x11\x01\x04\x00\x01\x00\x00\x00\x00\x00\x00\x00\x17\x01\x04\x00\x01\
@@ -26,6 +27,8 @@ cr2_thumbnail = cr2_bytes[0:-4] + struct.pack(
 
 
 def test_cr2_must_have_single_data_source():
+    with pytest.raises(TypeError):
+        Cr2()
     with pytest.raises(TypeError):
         Cr2(offset=1)
     with pytest.raises(TypeError):
