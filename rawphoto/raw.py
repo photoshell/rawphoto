@@ -61,7 +61,7 @@ class Raw(object):
 
     @property
     def endianness(self):
-        if hasattr(self, 'header'):
+        try:
             return self.header.endianness
-        else:
+        except AttributeError:
             return "@"
