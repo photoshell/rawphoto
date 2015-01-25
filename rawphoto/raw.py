@@ -1,25 +1,10 @@
 import os
-import hashlib
 
 from collections import namedtuple
 from rawphoto.cr2 import Cr2
 from rawphoto import cr2
 
 raw_formats = ['.CR2']
-
-
-def _hash_file(file_path):
-    """Hash a file"""
-    hash = hashlib.sha1()
-
-    # TODO: probably block size or something, although if your machine
-    # can't hold the whole file in memory you probably can't edit it
-    # anyway.
-    with open(file_path, 'rb') as f:
-        data = f.read()
-
-    hash.update(data)
-    return hash.hexdigest()
 
 
 def discover(path):
@@ -49,7 +34,6 @@ class Raw(_Raw):
             raise TypeError("File format not recognized")
         metadata = {}
         if ext == '.CR2':
-            file_hash = _hash_file(filename)
             fhandle = Cr2(filename=filename)
             for tag in cr2.tags.values():
                 e = fhandle.ifds[0].entries.get(tag)
@@ -64,7 +48,6 @@ class Raw(_Raw):
             'height': metadata.get('image_length', ''),
             'make': metadata.get('make', ''),
             'model': metadata.get('model', ''),
-            'file_hash': file_hash,
         }
 
         return super(Raw, cls).__new__(cls, raw_format, fhandle, metadata)

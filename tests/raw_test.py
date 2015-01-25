@@ -11,12 +11,6 @@ def cr2_file(tmpdir):
     return tmpdir.strpath + '/file.cr2'
 
 
-def test_hash_sha1(tmpdir):
-    tmpdir.join('file.test').write("Test")
-    assert (raw._hash_file(tmpdir.strpath + '/file.test') ==
-            '640ab2bae07bedc4c163f679a746f7ab7fb5d1fa')
-
-
 def test_discover_must_be_recursive(tmpdir):
     tmpdir.join("file1.CR2").write("")
     tmpdir.mkdir("sub").join("file2.CR2").write("")
@@ -53,7 +47,5 @@ def test_unrecognized_format_raises_type_error():
 
 
 def test_cr2_is_supported(cr2_file):
-    with Raw(filename=cr2_file) as raw:
-        assert 'file_hash' in raw.metadata
-        assert (raw.metadata['file_hash'] ==
-                '72ada310f7ff4b84d974d62f2c72fc870889f682')
+    with Raw(filename=cr2_file):
+        pass
