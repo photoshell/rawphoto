@@ -35,21 +35,25 @@ class Raw(object):
             raise TypeError("Raw must specify at least one input")
 
     def read(self, *args):
-        """Read data from the CR2 file handle
+        """Read data from the underlying file handle
 
         Arguments are passed through to fhandle.read.
         """
         return self.fhandle.read(*args)
 
     def seek(self, *args):
-        """Seek in the CR2 file
+        """Seek in the underlying file.
 
         Arguments are passed through to fhandle.seek.
         """
         return self.fhandle.seek(*args)
 
+    def tell(self):
+        """Get the current offset in the raw file."""
+        return self.fhandle.tell()
+
     def close(self):
-        """Closes the CR2 file handle.
+        """Closes the underlying file handle.
         """
         return self.fhandle.close()
 

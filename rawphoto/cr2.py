@@ -98,7 +98,7 @@ class Cr2(Raw):
     def __init__(self, blob=None, file=None, filename=None):
         super(Cr2, self).__init__(blob=blob, file=file, filename=filename)
 
-        pos = self.seek(0, 1)
+        pos = self.tell()
         self.header = Header(self.read(16))
         self.ifds = []
         self.ifds.append(Ifd(self.endianness, file=self.fhandle, tags=tags,
@@ -111,8 +111,7 @@ class Cr2(Raw):
                                  subdirs=subdirs))
             next_ifd_offset = self.ifds[len(self.ifds) - 1].next_ifd_offset
 
-        if pos is not None:
-            self.seek(pos)
+        self.seek(pos)
 
     def _get_image_data(self, ifd_num):
         """Gets image data from one of the IFDs.
@@ -122,11 +121,10 @@ class Cr2(Raw):
         """
         entries = self.ifds[ifd_num].entries
         if 'strip_offset' in entries and 'strip_byte_counts' in entries:
-            pos = self.fhandle.seek(0, 1)
-            self.fhandle.seek(entries['strip_offset'].raw_value)
-            img_data = self.fhandle.read(
-                entries['strip_byte_counts'].raw_value)
-            self.fhandle.seek(pos)
+            pos = self.tell()
+            self.seek(entries['strip_offset'].raw_value)
+            img_data = self.read(entries['strip_byte_counts'].raw_value)
+            self.seek(pos)
             return img_data
         else:
             return None
@@ -142,11 +140,10 @@ class Cr2(Raw):
         if len(self.ifds) >= 2:
             entries = self.ifds[1].entries
             if 'thumbnail_length' in entries and 'thumbnail_offset' in entries:
-                pos = self.fhandle.seek(0, 1)
-                self.fhandle.seek(entries['thumbnail_offset'].raw_value)
-                img_data = self.fhandle.read(
-                    entries['thumbnail_length'].raw_value)
-                self.fhandle.seek(pos)
+                pos = self.tell()
+                self.seek(entries['thumbnail_offset'].raw_value)
+                img_data = self.read(entries['thumbnail_length'].raw_value)
+                self.seek(pos)
                 return img_data
             else:
                 return None

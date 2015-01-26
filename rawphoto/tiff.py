@@ -76,7 +76,7 @@ class IfdEntry(_IfdEntryFields):
         else:
             raise TypeError("IfdEntry must specify at least one input")
 
-        pos = fhandle.seek(0, 1)
+        pos = fhandle.tell()
         if offset is not None:
             fhandle.seek(offset)
 
@@ -96,8 +96,7 @@ class IfdEntry(_IfdEntryFields):
             fhandle.seek(pos)
 
         # Rewind the file...
-        if pos is not None:
-            fhandle.seek(pos)
+        fhandle.seek(pos)
 
         return super(IfdEntry, cls).__new__(cls, tag_id, tag_name, tag_type,
                                             tag_type_key, value_len, raw_value)
@@ -123,7 +122,7 @@ class Ifd(object):
         self.subdirs = subdirs
         self.tag_types = tag_types
 
-        pos = self.fhandle.seek(0, 1)
+        pos = self.fhandle.tell()
         if offset is not None:
             self.fhandle.seek(offset)
 
@@ -142,8 +141,7 @@ class Ifd(object):
                                                offset=e.raw_value, tags=tags,
                                                subdirs=subdirs)
         [self.next_ifd_offset] = _read_tag(endianness + 'H', self.fhandle)
-        if pos is not None:
-            self.fhandle.seek(pos)
+        self.fhandle.seek(pos)
 
     def get_value(self, entry):
         """Get the value of an entry in the IFD.
@@ -155,7 +153,7 @@ class Ifd(object):
         size = struct.calcsize(self.endianness + tag_type)
         if size > 4 or tag_type == 's':
             # Read value
-            pos = self.fhandle.seek(0, 1)
+            pos = self.fhandle.tell()
             self.fhandle.seek(entry.raw_value)
             if tag_type == 's':
                 buf = self.fhandle.read(entry.value_len)
