@@ -61,8 +61,8 @@ def test_new_ifd_from_file(tmpdir):
 def test_new_ifd_from_blob():
     ifd = Ifd("<", blob=ifd_bytes)
     assert len(ifd.entries) == 2
-    assert 0x0201 in ifd.entries
-    assert 0x0202 in ifd.entries
+    assert 'data_offset' in ifd.entries
+    assert 'data_length' in ifd.entries
 
 
 def test_new_ifd_from_blob_with_offset():
@@ -72,48 +72,48 @@ def test_new_ifd_from_blob_with_offset():
 
 def test_ifds_must_parse_sub_ifds():
     ifd = Ifd("<", blob=ifd_bytes_sub_ifd, subdirs=[0x8769])
-    assert 0x8769 in ifd.entries
+    assert 'exif' in ifd.entries
     assert len(ifd.subifds) == 1
-    assert 0x8769 in ifd.subifds
-    assert 0x0201 in ifd.subifds[0x8769].entries
+    assert 'exif' in ifd.subifds
+    assert 'data_offset' in ifd.subifds['exif'].entries
 
 
 def test_get_value_invalid_offset():
     ifd = Ifd("<", blob=ifd_bytes)
     assert len(ifd.entries) == 2
-    assert ifd.get_value(ifd.entries[0x0201]) == \
-        ifd.entries[0x0201].raw_value
-    assert ifd.get_value(ifd.entries[0x0202]) == \
-        ifd.entries[0x0202].raw_value
+    assert ifd.get_value(ifd.entries['data_offset']) == \
+        ifd.entries['data_offset'].raw_value
+    assert ifd.get_value(ifd.entries['data_length']) == \
+        ifd.entries['data_length'].raw_value
 
 
 def test_ifd_get_string_value():
     ifd = Ifd("<", blob=ifd_bytes_string_value)
-    val = ifd.get_value(ifd.entries[0x010f])
+    val = ifd.get_value(ifd.entries['make'])
     assert isinstance(val, (type(u""), str))
     assert val == 'Canon'
 
 
 def test_ifd_get_byte_array_value():
     ifd = Ifd("<", blob=ifd_bytes_byte_array)
-    val = ifd.get_value(ifd.entries[0x010f])
+    val = ifd.get_value(ifd.entries['make'])
     assert isinstance(val, bytes)
     assert val == b'Canon\x00'
 
 
 def test_ifd_get_double():
     ifd = Ifd("<", blob=ifd_bytes_double)
-    val = ifd.get_value(ifd.entries[0x010f])
+    val = ifd.get_value(ifd.entries['make'])
     assert round(val - 3.14, 2) == 0
 
 
 def test_ifd_get_float():
     ifd = Ifd("<", blob=ifd_bytes_float)
-    val = ifd.get_value(ifd.entries[0x010f])
+    val = ifd.get_value(ifd.entries['make'])
     assert round(val - 1.62, 2) == 0
 
 
 def test_ifd_invalid_pointer():
     ifd = Ifd("<", blob=ifd_bytes_invalid_pointer)
-    val = ifd.get_value(ifd.entries[0x010f])
+    val = ifd.get_value(ifd.entries['make'])
     assert val == 303174162
