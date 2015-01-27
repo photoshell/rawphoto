@@ -79,22 +79,6 @@ def test_read_seek_close_cr2():
     assert cr2.fhandle.closed
 
 
-def test_fetching_image_ifd_index_error():
-    with Cr2(blob=cr2_bytes) as cr2:
-        with pytest.raises(IndexError):
-            cr2._get_image_data(50)
-
-
-def test_fetching_image_no_exists():
-    with Cr2(blob=header_bytes + ifd_bytes_string_value) as cr2:
-        assert cr2._get_image_data(0) is None
-
-
-def test_fetching_image():
-    with Cr2(blob=header_bytes + ifd_strip_image) as cr2:
-        assert cr2._get_image_data(0) == b'II' == cr2.preview_image
-
-
 def test_fetching_thumbnail_ifd_index_error():
     with Cr2(blob=cr2_bytes) as cr2:
         with pytest.raises(IndexError):

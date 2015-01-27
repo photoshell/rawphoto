@@ -11,7 +11,7 @@ _HeaderFields = namedtuple("HeaderFields", [
     "magic_word", "major_version", "minor_version", "raw_ifd_offset"
 ])
 
-subdirs = [0x8769, 0x927c]
+subdirs = [0x8769]
 
 tags = {
     0x0001: 'canon_camera_settings',
@@ -57,18 +57,18 @@ tags = {
     0x0106: 'photometric_interpretation',
     0x010f: 'make',
     0x0110: 'model',
-    0x0111: 'strip_offset',
+    0x0111: 'data_offset',
     0x0112: 'orientation',
     0x0115: 'samples_per_pixel',
     0x0116: 'row_per_strip',
-    0x0117: 'strip_byte_counts',
+    0x0117: 'data_length',
     0x011a: 'x_resolution',
     0x011b: 'y_resolution',
     0x011c: 'planar_configuration',
     0x0128: 'resolution_unit',
     0x0132: 'datetime',
-    0x0201: 'thumbnail_offset',
-    0x0202: 'thumbnail_length',
+    0x0201: 'data_offset',  # Thumbnail
+    0x0202: 'data_length',  # Thumbnail
     0x4010: 'custom_picture_style_file_name',
     0x4020: 'ambience_info',
     0x829a: 'exposure_time',
@@ -113,49 +113,22 @@ class Cr2(Raw):
 
         self.seek(pos)
 
-    def _get_image_data(self, ifd_num):
-        """Gets image data from one of the IFDs.
-
-        Args:
-            ifd_num - The IFD to read an image from.
-        """
-        entries = self.ifds[ifd_num].entries
-        if 'strip_offset' in entries and 'strip_byte_counts' in entries:
-            pos = self.tell()
-            self.seek(entries['strip_offset'].raw_value)
-            img_data = self.read(entries['strip_byte_counts'].raw_value)
-            self.seek(pos)
-            return img_data
-        else:
-            return None
-
     @property
     def preview_image(self):
         """Read a quarter sized image as RGB data from the CR2 file."""
-        return self._get_image_data(0)
+        return self._get_image_data()
 
     @property
     def thumbnail_image(self):
         """Read a thumbnail image from the CR2."""
-        if len(self.ifds) >= 2:
-            entries = self.ifds[1].entries
-            if 'thumbnail_length' in entries and 'thumbnail_offset' in entries:
-                pos = self.tell()
-                self.seek(entries['thumbnail_offset'].raw_value)
-                img_data = self.read(entries['thumbnail_length'].raw_value)
-                self.seek(pos)
-                return img_data
-            else:
-                return None
-        else:
-            raise IndexError
+        return self._get_image_data(num=1)
 
     @property
     def uncompressed_full_size_image(self):
         """Read uncompressed JPEG data with no WB settings from the CR2."""
-        return self._get_image_data(2)
+        return self._get_image_data(num=2)
 
     @property
     def raw_data(self):
         """Read the raw image data from the CR2."""
-        return self._get_image_data(3)
+        return self._get_image_data(num=3)

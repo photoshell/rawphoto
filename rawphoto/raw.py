@@ -69,3 +69,24 @@ class Raw(object):
             return self.header.endianness
         except AttributeError:
             return "@"
+
+    def _get_image_data(self, num=0, name=None):
+        """Gets image data from an IFD or sub-IFD.
+
+        Args:
+            name - The sub IFD name to read an image from.
+            num - The IFD number to read an image from.
+        """
+
+        if name is not None:
+            entries = self.ifds[0].subifds[name].entries
+        else:
+            entries = self.ifds[num].entries
+        if 'data_offset' in entries and 'data_length' in entries:
+            pos = self.tell()
+            self.seek(entries['data_offset'].raw_value)
+            img_data = self.read(entries['data_length'].raw_value)
+            self.seek(pos)
+            return img_data
+        else:
+            return None

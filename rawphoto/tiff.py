@@ -1,6 +1,7 @@
 from collections import namedtuple
 from io import BytesIO
 
+import os
 import struct
 
 
@@ -24,6 +25,7 @@ tag_types = {
     0xA: 'l',  # Signed rational (ignoring second half)
     0xB: 'f',  # Float (IEEE)
     0xC: 'd',  # Double (IEEE)
+    0xD: 'L',  # IFD (Unsigned long pointer; always to a child IFD)
 }
 
 
@@ -65,7 +67,7 @@ class IfdEntry(_IfdEntryFields):
     __slots__ = ()
 
     def __new__(cls, endianness, file=None, blob=None, offset=None, tags={},
-                tag_types=tag_types):
+                tag_types=tag_types, rewind=True):
         if sum([i is not None for i in [file, blob]]) > 1:
             raise TypeError("IfdEntry must only specify one input")
 
@@ -87,16 +89,24 @@ class IfdEntry(_IfdEntryFields):
         else:
             tag_name = tag_id
         tag_type = tag_types[tag_type_key]
-        if struct.calcsize(tag_type) > 4 or tag_type == 's':
+        size = struct.calcsize(tag_type) * value_len
+        if size > 4 or tag_type == 's':
             # If the value is a pointer to something small:
             [raw_value] = _read_tag(endianness + 'L', fhandle)
         else:
             # If the value is not an offset go ahead and read it:
-            [raw_value] = _read_tag(endianness + tag_type, fhandle)
-            fhandle.seek(pos)
+            if value_len > 1:
+                raw_value = _read_tag('{}{}{}'.format(endianness, value_len,
+                                                      tag_type), fhandle)
+            else:
+                [raw_value] = _read_tag(endianness + tag_type, fhandle)
+            # Fast forward to the end of the entry
+            if size < 4:
+                fhandle.seek(4 - size, os.SEEK_CUR)
 
         # Rewind the file...
-        fhandle.seek(pos)
+        if rewind:
+            fhandle.seek(pos)
 
         return super(IfdEntry, cls).__new__(cls, tag_id, tag_name, tag_type,
                                             tag_type_key, value_len, raw_value)
@@ -104,9 +114,7 @@ class IfdEntry(_IfdEntryFields):
 
 class Ifd(object):
 
-    def __init__(self, endianness,
-                 file=None, blob=None,
-                 offset=None,
+    def __init__(self, endianness, file=None, blob=None, offset=None,
                  subdirs=[], tags={}, tag_types=tag_types):
         if sum([i is not None for i in [file, blob]]) > 1:
             raise TypeError("IFD must only specify one input")
@@ -131,15 +139,26 @@ class Ifd(object):
 
         self.entries = {}
         self.subifds = {}
-        buf = self.fhandle.read(12 * num_entries)
         for i in range(num_entries):
-            e = IfdEntry(endianness, blob=buf[(12 * i):(12 * (i + 1))],
-                         tags=tags)
+            e = IfdEntry(endianness, file=self.fhandle,
+                         tags=tags, rewind=False)
             self.entries[e.tag_name] = e
             if e.tag_id in subdirs:
-                self.subifds[e.tag_name] = Ifd(endianness, file=self.fhandle,
-                                               offset=e.raw_value, tags=tags,
-                                               subdirs=subdirs)
+                if e.value_len > 1:
+                    i = 0
+                    for o in self.get_value(e):
+                        self.subifds[e.tag_name[i]] = Ifd(endianness,
+                                                          file=self.fhandle,
+                                                          offset=o, tags=tags,
+                                                          subdirs=subdirs)
+                        i += 1
+
+                else:
+                    self.subifds[e.tag_name] = Ifd(endianness,
+                                                   file=self.fhandle,
+                                                   offset=e.raw_value,
+                                                   tags=tags,
+                                                   subdirs=subdirs)
         [self.next_ifd_offset] = _read_tag(endianness + 'H', self.fhandle)
         self.fhandle.seek(pos)
 
@@ -150,7 +169,7 @@ class Ifd(object):
             entry - The IFDEntry to read the value for.
         """
         tag_type = entry.tag_type
-        size = struct.calcsize(self.endianness + tag_type)
+        size = struct.calcsize(self.endianness + tag_type) * entry.value_len
         if size > 4 or tag_type == 's':
             # Read value
             pos = self.fhandle.tell()
@@ -162,6 +181,15 @@ class Ifd(object):
                 # If this is a null terminated string
                 if entry.tag_type_key == 0x02:
                     value = value.rstrip(b'\0').decode("utf-8")
+            elif entry.value_len > 1:
+                buf = self.fhandle.read(size)
+                if len(buf) >= size:
+                    value = struct.unpack_from(
+                        '{}{}{}'.format(self.endianness, entry.value_len,
+                                        tag_type), buf)
+                else:
+                    # This branch should probably never be hit...
+                    value = entry.raw_value
             else:
                 buf = self.fhandle.read(size)
                 if len(buf) >= size:
