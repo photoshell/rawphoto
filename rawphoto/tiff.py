@@ -4,6 +4,58 @@ from io import BytesIO
 import os
 import struct
 
+exif_tags = {
+    0x0001: 'interop_index',
+    0x0002: 'interop_version',
+    0x000b: 'processing_software',
+    0x00fe: 'subfile_type',
+    0x0100: 'image_width',
+    0x0101: 'image_height',
+    0x0102: 'bits_per_sample',
+    0x0103: 'compression',
+    0x0106: 'photometric_interpretation',
+    0x010f: 'make',
+    0x0110: 'model',
+    0x0111: 'data_offset',
+    0x0112: 'orientation',
+    0x0115: 'samples_per_pixel',
+    0x0116: 'row_per_strip',
+    0x0117: 'data_length',
+    0x011a: 'x_resolution',
+    0x011b: 'y_resolution',
+    0x011c: 'planar_configuration',
+    0x0128: 'resolution_unit',
+    0x0132: 'datetime',
+    0x0201: 'data_offset',  # Thumbnail
+    0x0202: 'data_length',  # Thumbnail
+    0x4010: 'custom_picture_style_file_name',
+    0x4020: 'ambience_info',
+    0x828d: 'cfa_repeat_pattern_dim',
+    0x828e: 'cfa_pattern_two',
+    0x829a: 'exposure_time',
+    0x829d: 'fnumber',
+    0x8769: 'exif',
+    0x8825: 'gps_data',
+    0x927c: 'makernote',
+    0xc633: 'shadow_scale',
+    0xc634: 'makernote',  # SR2 private, DNG data, makernote pentax, etc.
+    0xc635: 'makernote_safety',
+    0xc640: 'raw_image_segmentation',
+    0xfdea: 'lens',
+    0xfe4c: 'raw_file',
+    0xfe4d: 'converter',
+    0xfe4e: 'white_balance',
+    0xfe51: 'exposure',
+    0xfe51: 'exposure',
+    0xfe52: 'shadows',
+    0xfe53: 'brightness',
+    0xfe54: 'contrast',
+    0xfe55: 'saturation',
+    0xfe56: 'sharpness',
+    0xfe57: 'smoothness',
+    0xfe58: 'moire_filter',
+}
+
 
 # Mapping from manufacturer to associated endianness as accepted by struct
 endian_flags = {
@@ -66,8 +118,8 @@ _IfdEntryFields = namedtuple("IfdEntryFields", [
 class IfdEntry(_IfdEntryFields):
     __slots__ = ()
 
-    def __new__(cls, endianness, file=None, blob=None, offset=None, tags={},
-                tag_types=tag_types, rewind=True):
+    def __new__(cls, endianness, file=None, blob=None, offset=None,
+                tags=exif_tags, tag_types=tag_types, rewind=True):
         if sum([i is not None for i in [file, blob]]) > 1:
             raise TypeError("IfdEntry must only specify one input")
 
@@ -115,7 +167,7 @@ class IfdEntry(_IfdEntryFields):
 class Ifd(object):
 
     def __init__(self, endianness, file=None, blob=None, offset=None,
-                 subdirs=[], tags={}, tag_types=tag_types):
+                 subdirs=[], tags=exif_tags, tag_types=tag_types):
         if sum([i is not None for i in [file, blob]]) > 1:
             raise TypeError("IFD must only specify one input")
 

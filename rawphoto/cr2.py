@@ -1,7 +1,8 @@
 from collections import namedtuple
 from rawphoto.raw import Raw
-from rawphoto.tiff import Ifd
 from rawphoto.tiff import endian_flags
+from rawphoto.tiff import exif_tags
+from rawphoto.tiff import Ifd
 
 import struct
 
@@ -13,7 +14,8 @@ _HeaderFields = namedtuple("HeaderFields", [
 
 subdirs = [0x8769]
 
-tags = {
+tags = exif_tags.copy()
+tags.update({
     0x0001: 'canon_camera_settings',
     0x0002: 'canon_focal_length',
     0x0004: 'canon_shot_info',
@@ -49,35 +51,8 @@ tags = {
     0x0095: 'lens_model',
     0x0096: 'serial_info',
     0x00ae: 'color_temperature',
-    0x00b4: 'color_space',  # 1=sRGB, 2=Adobe RGB
-    0x0100: 'image_width',
-    0x0101: 'image_length',
-    0x0102: 'bits_per_sample',
-    0x0103: 'compression',
-    0x0106: 'photometric_interpretation',
-    0x010f: 'make',
-    0x0110: 'model',
-    0x0111: 'data_offset',
-    0x0112: 'orientation',
-    0x0115: 'samples_per_pixel',
-    0x0116: 'row_per_strip',
-    0x0117: 'data_length',
-    0x011a: 'x_resolution',
-    0x011b: 'y_resolution',
-    0x011c: 'planar_configuration',
-    0x0128: 'resolution_unit',
-    0x0132: 'datetime',
-    0x0201: 'data_offset',  # Thumbnail
-    0x0202: 'data_length',  # Thumbnail
-    0x4010: 'custom_picture_style_file_name',
-    0x4020: 'ambience_info',
-    0x829a: 'exposure_time',
-    0x829d: 'fnumber',
-    0x8769: 'exif',
-    0x8825: 'gps_data',
-    0x927c: 'makernote',
-    0xc640: 'cr2_slice',
-}
+    0x00b4: 'color_space'  # 1=sRGB, 2=Adobe RGB
+})
 
 
 class Header(_HeaderFields):
