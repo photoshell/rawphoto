@@ -1,7 +1,7 @@
 # rawphoto
 
-[![Build Status](https://travis-ci.org/SamWhited/rawphoto.svg)](https://travis-ci.org/SamWhited/rawphoto)
-[![Coverage Status](https://img.shields.io/coveralls/SamWhited/rawphoto.svg)](https://coveralls.io/r/SamWhited/rawphoto)
+[![Build Status](https://travis-ci.org/photoshell/rawphoto.svg)](https://travis-ci.org/photoshell/rawphoto)
+[![Coverage Status](https://coveralls.io/repos/photoshell/rawphoto/badge.svg?branch=master)](https://coveralls.io/r/photoshell/rawphoto?branch=master)
 [![Latest Version](https://pypip.in/version/rawphoto/badge.svg)](https://pypi.python.org/pypi/rawphoto/)
 [![Development Status](https://pypip.in/status/rawphoto/badge.svg)](https://pypi.python.org/pypi/rawphoto/)
 
