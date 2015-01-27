@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='rawphoto',
-    version='0.3.0',
+    version='0.4.0',
     description='Utilities for managing raw photos',
     author='Sam Whited',
     author_email='sam@samwhited.com',
@@ -30,6 +30,7 @@ Raw image file parser
 
 Currently supports
   - Canon CR2
+  - Nikon NEF
 """
 
 )
