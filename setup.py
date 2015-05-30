@@ -28,6 +28,8 @@ setup(
 Raw image file parser
 ---------------------
 
+**Deprecated in favor of rawkit.**
+
 Currently supports
   - Canon CR2
   - Nikon NEF
