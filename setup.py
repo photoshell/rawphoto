@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='rawphoto',
-    version='0.4.0',
+    version='0.4.1',
     description='Utilities for managing raw photos',
     author='Sam Whited',
     author_email='sam@samwhited.com',
@@ -16,7 +16,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.3",
         "Programming Language :: Python :: 3.4",
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 7 - Inactive",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "License :: OSI Approved :: BSD License",
